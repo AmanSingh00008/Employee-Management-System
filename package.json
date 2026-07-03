@@ -1,0 +1,10 @@
+{
+    "name": "employee-management-system-root",
+    "private": true,
+    "scripts": {
+        "dev": "npm run dev --prefix \"Employee Management System\"",
+        "build": "npm run build --prefix \"Employee Management System\"",
+        "lint": "npm run lint --prefix \"Employee Management System\"",
+        "preview": "npm run preview --prefix \"Employee Management System\""
+    }
+}

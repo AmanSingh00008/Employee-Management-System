@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+/* Modern Reset and Page Styles */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #0b0f19;
+  color: #f3f4f6;
+  font-family: ui-sans-serif, system-ui, sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  overflow-x: hidden;
+  height: 100%;
+}
+
+::placeholder {
+  color: #9ca3af;
+}
