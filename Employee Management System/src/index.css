@@ -15,3 +15,15 @@ body {
 ::placeholder {
   color: #9ca3af;
 }
+
+#TaskList::-webkit-scrollbar {
+  display: none;
+}
+
+#TaskList::-webkit-scrollbar-track {
+  display: none;
+}
+
+#TaskList::-webkit-scrollbar-thumb {
+  display: none;
+}
