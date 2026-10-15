@@ -1,5 +1,7 @@
+
 import { Router } from "express";
 import { verifyJWT } from "../middleware/auth.middleware.js";
+import { authorizeRoles } from "../middleware/authorize.middleware.js";
 
 import {
   markAttendance,
@@ -12,28 +14,13 @@ const router = Router();
 
 router.use(verifyJWT);
 
-router.route("/")
-  .post(markAttendance)
-  .get(getAttendanceRecords);
-
-router.route("/:id")
-  .get(getAttendanceById)
-  .patch(updateAttendance);
-
-  router.use(verifyJWT);
-
 router.post(
   "/",
   authorizeRoles("super_admin", "hr_admin", "manager"),
   markAttendance
 );
 
-router.get(
-  "/",
-  authorizeRoles("super_admin", "hr_admin", "manager"),
-  getAttendanceRecords
-);
-
+router.get("/", getAttendanceRecords);
 router.get("/:id", getAttendanceById);
 
 router.patch(
