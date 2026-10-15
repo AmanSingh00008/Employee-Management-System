@@ -1,6 +1,5 @@
 
 import { Router } from "express";
-
 import {
   getUsers,
   getUserById,
@@ -10,53 +9,27 @@ import {
 } from "../controllers/user.controller.js";
 
 import { verifyJWT } from "../middleware/auth.middleware.js";
+import { authorizeRoles } from "../middleware/authorize.middleware.js";
 
 const router = Router();
 
-// All routes require authentication
 router.use(verifyJWT);
 
-// Get the currently logged-in user
 router.get("/me", getCurrentUser);
-
-// List all users
-router.get("/", getUsers);
-
-// Get a user by ID
-router.get("/:id", getUserById);
-
-// Update user details, role or status
-router.patch("/:id", updateUser);
-
-// Deactivate a user account
-router.delete("/:id", deactivateUser);
-
-router.use(verifyJWT);
-
-router.post(
-  "/",
-  authorizeRoles("super_admin", "hr_admin"),
-  createEmployee
-);
 
 router.get(
   "/",
-  authorizeRoles("super_admin", "hr_admin", "manager"),
-  getEmployees
-);
-
-router.get("/:id", getEmployeeById);
-
-router.patch(
-  "/:id",
   authorizeRoles("super_admin", "hr_admin"),
-  updateEmployee
+  getUsers
 );
+
+router.get("/:id", getUserById);
+router.patch("/:id", updateUser);
 
 router.delete(
   "/:id",
-  authorizeRoles("super_admin", "hr_admin"),
-  deactivateEmployee
+  authorizeRoles("super_admin"),
+  deactivateUser
 );
 
 export default router;
