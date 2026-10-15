@@ -1,5 +1,7 @@
+
 import { Router } from "express";
 import { verifyJWT } from "../middleware/auth.middleware.js";
+import { authorizeRoles } from "../middleware/authorize.middleware.js";
 
 import {
   assignAsset,
@@ -12,11 +14,19 @@ const router = Router();
 
 router.use(verifyJWT);
 
-router.route("/")
-  .post(assignAsset)
-  .get(getAssetAssignments);
-
+router.get("/", getAssetAssignments);
 router.get("/:id", getAssetAssignmentById);
-router.patch("/:id/return", returnAsset);
+
+router.post(
+  "/",
+  authorizeRoles("super_admin", "hr_admin"),
+  assignAsset
+);
+
+router.patch(
+  "/:id/return",
+  authorizeRoles("super_admin", "hr_admin"),
+  returnAsset
+);
 
 export default router;

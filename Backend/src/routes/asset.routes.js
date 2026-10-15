@@ -1,5 +1,7 @@
+
 import { Router } from "express";
 import { verifyJWT } from "../middleware/auth.middleware.js";
+import { authorizeRoles } from "../middleware/authorize.middleware.js";
 
 import {
   createAsset,
@@ -13,12 +15,34 @@ const router = Router();
 
 router.use(verifyJWT);
 
-router.route("/")
-  .post(createAsset)
-  .get(getAssets);
+router.get(
+  "/",
+  authorizeRoles("super_admin", "hr_admin", "manager"),
+  getAssets
+);
 
-router.get("/:id", getAssetById);
-router.patch("/:id", updateAsset);
-router.patch("/:id/retire", retireAsset);
+router.get(
+  "/:id",
+  authorizeRoles("super_admin", "hr_admin", "manager"),
+  getAssetById
+);
+
+router.post(
+  "/",
+  authorizeRoles("super_admin", "hr_admin"),
+  createAsset
+);
+
+router.patch(
+  "/:id",
+  authorizeRoles("super_admin", "hr_admin"),
+  updateAsset
+);
+
+router.patch(
+  "/:id/retire",
+  authorizeRoles("super_admin", "hr_admin"),
+  retireAsset
+);
 
 export default router;
