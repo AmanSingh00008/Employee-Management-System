@@ -1,48 +1,29 @@
 
 import { Router } from "express";
+import { verifyJWT } from "../middleware/auth.middleware.js";
+import { authorizeRoles } from "../middleware/authorize.middleware.js";
 
 import {
   createDepartment,
   getDepartments,
   getDepartmentById,
   updateDepartment,
-  deleteDepartment,
+  deactivateDepartment,
 } from "../controllers/department.controller.js";
-
-// Add your authentication and role-authorization middleware
-// before exposing these routes in production.
 
 const router = Router();
 
-router
-  .route("/")
-  .get(getDepartments)
-  .post(createDepartment);
+router.use(verifyJWT);
 
-router
-  .route("/:id")
-  .get(getDepartmentById)
-  .patch(updateDepartment)
-  .delete(deleteDepartment);
+// Authenticated users can view departments.
+router.get("/", getDepartments);
+router.get("/:id", getDepartmentById);
 
-  router.use(verifyJWT);
-
+// Only HR/Admin can manage departments.
 router.post(
   "/",
   authorizeRoles("super_admin", "hr_admin"),
   createDepartment
-);
-
-router.get(
-  "/",
-  authorizeRoles("super_admin", "hr_admin", "manager", "employee"),
-  getDepartments
-);
-
-router.get(
-  "/:id",
-  authorizeRoles("super_admin", "hr_admin", "manager", "employee"),
-  getDepartmentById
 );
 
 router.patch(
@@ -51,10 +32,10 @@ router.patch(
   updateDepartment
 );
 
-router.delete(
-  "/:id",
+router.patch(
+  "/:id/deactivate",
   authorizeRoles("super_admin", "hr_admin"),
-  deleteDepartment
+  deactivateDepartment
 );
 
 export default router;

@@ -1,257 +1,305 @@
 
 import mongoose from "mongoose";
-
 import { Department } from "../models/department.model.js";
 import { Employee } from "../models/employee.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
-const isValidObjectId = (id) =>
-  mongoose.isValidObjectId(id);
+const HR_ROLES = ["super_admin", "hr_admin"];
 
+const requireHR = (user) => {
+  if (!HR_ROLES.includes(user.role)) {
+    throw new ApiError(403, "HR/Admin permission required");
+  }
+};
+
+const validateId = (id) => {
+  if (!mongoose.isValidObjectId(id)) {
+    throw new ApiError(400, "Invalid department ID");
+  }
+};
+
+const escapeRegex = (value) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// POST /api/v1/departments
 export const createDepartment = asyncHandler(async (req, res) => {
+  requireHR(req.user);
+
   const { name, code, description, departmentHead } = req.body;
 
   if (!name?.trim() || !code?.trim()) {
+    throw new ApiError(400, "Department name and code are required");
+  }
+
+  const normalizedName = name.trim();
+  const normalizedCode = code.trim().toUpperCase();
+
+  if (!/^[A-Z0-9_-]+$/.test(normalizedCode)) {
     throw new ApiError(
       400,
-      "Department name and code are required"
+      "Department code may contain only letters, numbers, underscores and hyphens"
     );
   }
 
-  if (departmentHead && !isValidObjectId(departmentHead)) {
-    throw new ApiError(400, "Invalid department head ID");
-  }
-
   if (departmentHead) {
-    const employee = await Employee.findById(departmentHead);
+    if (!mongoose.isValidObjectId(departmentHead)) {
+      throw new ApiError(400, "Invalid department head ID");
+    }
 
-    if (!employee) {
-      throw new ApiError(404, "Department head not found");
+    const head = await Employee.findOne({
+      _id: departmentHead,
+      employmentStatus: "active",
+    });
+
+    if (!head) {
+      throw new ApiError(400, "Department head must be an active employee");
     }
   }
 
-  const normalizedCode = code.trim().toUpperCase();
+  const duplicate = await Department.findOne({
+    $or: [
+      { name: { $regex: `^${escapeRegex(normalizedName)}$`, $options: "i" } },
+      { code: normalizedCode },
+    ],
+  }).select("_id");
 
-  const existingDepartment = await Department.findOne({
-    code: normalizedCode,
-  });
-
-  if (existingDepartment) {
-    throw new ApiError(409, "Department code already exists");
+  if (duplicate) {
+    throw new ApiError(409, "Department name or code already exists");
   }
 
   const department = await Department.create({
-    name: name.trim(),
+    name: normalizedName,
     code: normalizedCode,
-    description,
-    departmentHead: departmentHead || null,
-    createdBy: req.user?._id || null,
+    description: description?.trim(),
+    departmentHead: departmentHead || undefined,
+    createdBy: req.user._id,
   });
 
-  res.status(201).json({
+  return res.status(201).json({
     success: true,
     message: "Department created successfully",
     data: department,
   });
 });
 
+// GET /api/v1/departments
 export const getDepartments = asyncHandler(async (req, res) => {
-  const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
-  const limit = Math.min(
-    100,
-    Math.max(1, Number.parseInt(req.query.limit, 10) || 10)
-  );
+  const {
+    search,
+    isActive,
+    page = 1,
+    limit = 10,
+  } = req.query;
 
   const filter = {};
 
-  if (req.query.isActive !== undefined) {
-    if (!["true", "false"].includes(req.query.isActive)) {
+  if (isActive !== undefined) {
+    if (!["true", "false"].includes(isActive)) {
       throw new ApiError(400, "isActive must be true or false");
     }
 
-    filter.isActive = req.query.isActive === "true";
+    filter.isActive = isActive === "true";
   }
 
-  if (req.query.search?.trim()) {
-    const escapedSearch = req.query.search
-      .trim()
-      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (search?.trim()) {
+    const regex = new RegExp(escapeRegex(search.trim()), "i");
 
     filter.$or = [
-      { name: { $regex: escapedSearch, $options: "i" } },
-      { code: { $regex: escapedSearch, $options: "i" } },
+      { name: regex },
+      { code: regex },
+      { description: regex },
     ];
   }
+
+  const pageNumber = Math.max(1, Number(page) || 1);
+  const pageSize = Math.min(100, Math.max(1, Number(limit) || 10));
 
   const [departments, total] = await Promise.all([
     Department.find(filter)
       .populate("departmentHead", "firstName lastName employeeCode")
       .sort({ name: 1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean(),
-
+      .skip((pageNumber - 1) * pageSize)
+      .limit(pageSize),
     Department.countDocuments(filter),
   ]);
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     data: departments,
     pagination: {
-      page,
-      limit,
+      page: pageNumber,
+      limit: pageSize,
       total,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / pageSize),
     },
   });
 });
 
+// GET /api/v1/departments/:id
 export const getDepartmentById = asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  validateId(req.params.id);
 
-  if (!isValidObjectId(id)) {
-    throw new ApiError(400, "Invalid department ID");
-  }
-
-  const department = await Department.findById(id)
-    .populate("departmentHead", "firstName lastName employeeCode");
+  const department = await Department.findById(req.params.id).populate(
+    "departmentHead",
+    "firstName lastName employeeCode workEmail designation"
+  );
 
   if (!department) {
     throw new ApiError(404, "Department not found");
   }
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     data: department,
   });
 });
 
+// PATCH /api/v1/departments/:id
 export const updateDepartment = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const { name, code, description, departmentHead, isActive } = req.body;
+  requireHR(req.user);
+  validateId(req.params.id);
 
-  if (!isValidObjectId(id)) {
-    throw new ApiError(400, "Invalid department ID");
-  }
-
-  const allowedFields = [
-    "name",
-    "code",
-    "description",
-    "departmentHead",
-    "isActive",
-  ];
-
-  const hasAllowedField = allowedFields.some((field) =>
-    Object.prototype.hasOwnProperty.call(req.body, field)
-  );
-
-  if (!hasAllowedField) {
-    throw new ApiError(400, "No valid fields provided for update");
-  }
-
-  const update = {};
-
-  if (name !== undefined) {
-    if (typeof name !== "string" || !name.trim()) {
-      throw new ApiError(400, "Department name cannot be empty");
-    }
-
-    update.name = name.trim();
-  }
-
-  if (code !== undefined) {
-    if (typeof code !== "string" || !code.trim()) {
-      throw new ApiError(400, "Department code cannot be empty");
-    }
-
-    update.code = code.trim().toUpperCase();
-  }
-
-  if (description !== undefined) {
-    if (typeof description !== "string") {
-      throw new ApiError(400, "Description must be a string");
-    }
-
-    update.description = description.trim();
-  }
-
-  if (departmentHead !== undefined) {
-    if (departmentHead === null || departmentHead === "") {
-      update.departmentHead = null;
-    } else {
-      if (!isValidObjectId(departmentHead)) {
-        throw new ApiError(400, "Invalid department head ID");
-      }
-
-      const employee = await Employee.findById(departmentHead);
-
-      if (!employee) {
-        throw new ApiError(404, "Department head not found");
-      }
-
-      update.departmentHead = departmentHead;
-    }
-  }
-
-  if (isActive !== undefined) {
-    if (typeof isActive !== "boolean") {
-      throw new ApiError(400, "isActive must be a boolean");
-    }
-
-    update.isActive = isActive;
-  }
-
-  const department = await Department.findByIdAndUpdate(
-    id,
-    { $set: update },
-    {
-      new: true,
-      runValidators: true,
-    }
-  ).populate("departmentHead", "firstName lastName employeeCode");
+  const department = await Department.findById(req.params.id);
 
   if (!department) {
     throw new ApiError(404, "Department not found");
   }
 
-  res.status(200).json({
+  const allowedFields = ["name", "code", "description", "departmentHead"];
+  const updates = {};
+
+  for (const field of allowedFields) {
+    if (Object.hasOwn(req.body, field)) {
+      updates[field] = req.body[field];
+    }
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new ApiError(400, "No valid department fields provided");
+  }
+
+  if (Object.hasOwn(updates, "name")) {
+    if (typeof updates.name !== "string" || !updates.name.trim()) {
+      throw new ApiError(400, "Department name cannot be empty");
+    }
+
+    updates.name = updates.name.trim();
+  }
+
+  if (Object.hasOwn(updates, "code")) {
+    if (typeof updates.code !== "string" || !updates.code.trim()) {
+      throw new ApiError(400, "Department code cannot be empty");
+    }
+
+    updates.code = updates.code.trim().toUpperCase();
+
+    if (!/^[A-Z0-9_-]+$/.test(updates.code)) {
+      throw new ApiError(400, "Invalid department code format");
+    }
+  }
+
+  if (Object.hasOwn(updates, "description")) {
+    if (
+      updates.description !== null &&
+      typeof updates.description !== "string"
+    ) {
+      throw new ApiError(400, "Description must be a string");
+    }
+
+    if (typeof updates.description === "string") {
+      updates.description = updates.description.trim();
+    }
+  }
+
+  if (Object.hasOwn(updates, "departmentHead")) {
+    if (updates.departmentHead === null || updates.departmentHead === "") {
+      updates.departmentHead = undefined;
+    } else {
+      if (!mongoose.isValidObjectId(updates.departmentHead)) {
+        throw new ApiError(400, "Invalid department head ID");
+      }
+
+      const head = await Employee.findOne({
+        _id: updates.departmentHead,
+        employmentStatus: "active",
+      }).select("_id");
+
+      if (!head) {
+        throw new ApiError(400, "Department head must be an active employee");
+      }
+    }
+  }
+
+  const duplicateConditions = [];
+
+  if (updates.name) {
+    duplicateConditions.push({
+      name: {
+        $regex: `^${escapeRegex(updates.name)}$`,
+        $options: "i",
+      },
+    });
+  }
+
+  if (updates.code) {
+    duplicateConditions.push({ code: updates.code });
+  }
+
+  if (duplicateConditions.length > 0) {
+    const duplicate = await Department.findOne({
+      _id: { $ne: department._id },
+      $or: duplicateConditions,
+    }).select("_id");
+
+    if (duplicate) {
+      throw new ApiError(409, "Department name or code already exists");
+    }
+  }
+
+  Object.assign(department, updates);
+  await department.save();
+
+  return res.status(200).json({
     success: true,
     message: "Department updated successfully",
     data: department,
   });
 });
 
-export const deleteDepartment = asyncHandler(async (req, res) => {
-  const { id } = req.params;
+// PATCH /api/v1/departments/:id/deactivate
+export const deactivateDepartment = asyncHandler(async (req, res) => {
+  requireHR(req.user);
+  validateId(req.params.id);
 
-  if (!isValidObjectId(id)) {
-    throw new ApiError(400, "Invalid department ID");
-  }
-
-  const department = await Department.findById(id);
+  const department = await Department.findById(req.params.id);
 
   if (!department) {
     throw new ApiError(404, "Department not found");
   }
 
-  const employeeExists = await Employee.exists({
-    departmentId: id,
+  if (!department.isActive) {
+    throw new ApiError(409, "Department is already inactive");
+  }
+
+  const assignedEmployees = await Employee.countDocuments({
+    departmentId: department._id,
+    employmentStatus: "active",
   });
 
-  if (employeeExists) {
+  if (assignedEmployees > 0) {
     throw new ApiError(
       409,
-      "Department has employees. Reassign them before deactivation."
+      "Move active employees to another department before deactivation"
     );
   }
 
   department.isActive = false;
   await department.save();
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Department deactivated successfully",
+    data: department,
   });
 });
