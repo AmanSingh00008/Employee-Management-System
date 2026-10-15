@@ -7,6 +7,9 @@ import { env } from "./config/env.js";
 import { ApiError } from "./utils/ApiError.js";
 import { notFound } from "./middleware/notFound.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import departmentRoutes from "./routes/department.routes.js";
+
+app.use("/api/v1/departments", departmentRoutes);
 
 const app = express();
 
