@@ -9,10 +9,20 @@ import { notFound } from "./middleware/notFound.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import departmentRoutes from "./routes/department.routes.js";
 import refreshSessionRoutes from "./routes/refreshSession.routes.js";
+import userRoutes from "./routes/user.routes.js";
+import employeeRoutes from "./routes/employee.routes.js";
+import leaveTypeRoutes from "./routes/leaveType.routes.js";
+import leaveBalanceRoutes from "./routes/leaveBalance.routes.js";
+i
 
+app.use("/api/v1/leave-balances", leaveBalanceRoutes);
+
+app.use("/api/v1/leave-types", leaveTypeRoutes);
 app.use("/api/v1/sessions", refreshSessionRoutes);
 
 app.use("/api/v1/departments", departmentRoutes);
+app.use("/api/v1/employees", employeeRoutes);
+app.use("/api/v1/users", userRoutes);
 
 const app = express();
 
