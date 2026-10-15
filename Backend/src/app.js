@@ -25,7 +25,9 @@ import {
   generalRateLimiter,
   authRateLimiter,
 } from "./middleware/rateLimit.middleware.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
 
+app.use("/api/v1/dashboard", dashboardRoutes);
 app.use("/api/", generalRateLimiter);
 app.use("/api/v1/auth/login", authRateLimiter);
 
