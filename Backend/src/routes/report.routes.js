@@ -7,6 +7,9 @@ import {
   exportAttendanceReport,
   exportLeaveReport,
 } from "../controllers/report.controller.js";
+import { getMyReportHistory } from "../controllers/reportHistory.controller.js";
+
+router.get("/history", getMyReportHistory);
 
 const router = Router();
 

@@ -4,7 +4,8 @@ import { Department } from "../models/department.model.js";
 import { Attendance } from "../models/attendance.model.js";
 import { LeaveRequest } from "../models/leaveRequest.model.js";
 import { ApiError } from "../utils/ApiError.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
+import { asyncHandler } from "../utils/asyncHandler.js"
+import { Report } from "../models/report.model.js";;
 
 const HR_ROLES = ["super_admin", "hr_admin"];
 
@@ -47,11 +48,30 @@ const escapeCsv = (value) => {
   return `"${safeText.replace(/"/g, '""')}"`;
 };
 
-const sendCsv = (res, filename, headers, rows) => {
+
+const sendCsv = async (
+  res,
+  filename,
+  headers,
+  rows,
+  { userId, reportType, filters = {} }
+) => {
   const csv = [
     headers.map(escapeCsv).join(","),
     ...rows.map((row) => row.map(escapeCsv).join(",")),
   ].join("\r\n");
+
+  // Record the export in MongoDB before sending the file.
+  await Report.create({
+    generatedBy: userId,
+    reportType,
+    format: "csv",
+    filters,
+    recordCount: rows.length,
+    status: "completed",
+    fileName: filename,
+    completedAt: new Date(),
+  });
 
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader(
@@ -61,6 +81,7 @@ const sendCsv = (res, filename, headers, rows) => {
 
   return res.status(200).send("\uFEFF" + csv);
 };
+
 
 // GET /api/v1/reports/employees
 export const exportEmployeeReport = asyncHandler(async (req, res) => {
