@@ -1,5 +1,5 @@
 
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -11,22 +11,13 @@ import {
   Settings,
   BriefcaseBusiness,
   X,
+  LogOut,
 } from "lucide-react";
-import { LogOut } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/authContext.jsx";
-
-const { user, logout } = useAuth();
-const navigate = useNavigate();
-
-const handleLogout = () => {
-  logout();
-  navigate("/login", { replace: true });
-};
 
 const menuItems = [
   { name: "Dashboard", path: "/", icon: LayoutDashboard },
-  { name: "Employees", path: "/employees", icon: user },
+  { name: "Employees", path: "/employees", icon: Users },
   { name: "Departments", path: "/departments", icon: Building2 },
   { name: "Leave Management", path: "/leaves", icon: CalendarDays },
   { name: "Attendance", path: "/attendance", icon: ClipboardCheck },
@@ -36,6 +27,14 @@ const menuItems = [
 ];
 
 function Sidebar({ isOpen, closeSidebar }) {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
+
   return (
     <>
       {isOpen && (
@@ -115,6 +114,14 @@ function Sidebar({ isOpen, closeSidebar }) {
               Your HR workspace is ready to configure.
             </p>
           </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-3 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-rose-50 hover:text-rose-600"
+          >
+            <LogOut size={18} />
+            Logout
+          </button>
           <p className="mt-4 text-center text-xs text-slate-400">
             WorkforceHub © 2026
           </p>
@@ -123,13 +130,5 @@ function Sidebar({ isOpen, closeSidebar }) {
     </>
   );
 }
-<button
-  type="button"
-  onClick={handleLogout}
-  className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-rose-50 hover:text-rose-600"
->
-  <LogOut size={18} />
-  Logout
-</button>
 
 export default Sidebar;

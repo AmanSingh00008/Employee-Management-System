@@ -32,6 +32,10 @@ function setRefreshCookie(res, token) {
   });
 }
 
+function isDuplicateKeyError(error) {
+  return error?.code === 11000;
+}
+
 // ─── Register ────────────────────────────────────────────────────────────────
 
 export async function register(req, res) {
@@ -76,7 +80,13 @@ export async function register(req, res) {
       accessToken,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    if (isDuplicateKeyError(error)) {
+      return res.status(409).json({
+        message: "An account with this email already exists",
+      });
+    }
+
+    return res.status(500).json({ message: "Unable to create account" });
   }
 }
 
@@ -91,7 +101,7 @@ export async function login(req, res) {
     }
 
     const user = await User.findOne({ email: email.toLowerCase().trim() }).select("+passwordHash");
-    if (!user) {
+    if (!user || typeof user.passwordHash !== "string") {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
@@ -125,7 +135,7 @@ export async function login(req, res) {
       accessToken,
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Unable to log in" });
   }
 }
 
