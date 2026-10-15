@@ -8,6 +8,9 @@ import { ApiError } from "./utils/ApiError.js";
 import { notFound } from "./middleware/notFound.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import departmentRoutes from "./routes/department.routes.js";
+import refreshSessionRoutes from "./routes/refreshSession.routes.js";
+
+app.use("/api/v1/sessions", refreshSessionRoutes);
 
 app.use("/api/v1/departments", departmentRoutes);
 
