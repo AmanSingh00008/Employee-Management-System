@@ -12,10 +12,21 @@ import {
   BriefcaseBusiness,
   X,
 } from "lucide-react";
+import { LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+
+const { user, logout } = useAuth();
+const navigate = useNavigate();
+
+const handleLogout = () => {
+  logout();
+  navigate("/login", { replace: true });
+};
 
 const menuItems = [
   { name: "Dashboard", path: "/", icon: LayoutDashboard },
-  { name: "Employees", path: "/employees", icon: Users },
+  { name: "Employees", path: "/employees", icon: user },
   { name: "Departments", path: "/departments", icon: Building2 },
   { name: "Leave Management", path: "/leaves", icon: CalendarDays },
   { name: "Attendance", path: "/attendance", icon: ClipboardCheck },
@@ -112,5 +123,13 @@ function Sidebar({ isOpen, closeSidebar }) {
     </>
   );
 }
+<button
+  type="button"
+  onClick={handleLogout}
+  className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-rose-50 hover:text-rose-600"
+>
+  <LogOut size={18} />
+  Logout
+</button>
 
 export default Sidebar;
