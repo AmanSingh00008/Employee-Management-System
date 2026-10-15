@@ -6,5 +6,8 @@
         "build": "npm run build --prefix \"Employee Management System\"",
         "lint": "npm run lint --prefix \"Employee Management System\"",
         "preview": "npm run preview --prefix \"Employee Management System\""
+    },
+    "dependencies": {
+        "express-rate-limit": "^8.7.1"
     }
 }
