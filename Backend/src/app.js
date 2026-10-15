@@ -20,6 +20,7 @@ import employeeDocumentRoutes from "./routes/employeeDocument.routes.js";
 import auditLogRoutes from "./routes/auditLog.routes.js";
 import refreshSessionRoutes from "./routes/refreshSession.routes.js";
 import { requestId } from "./middleware/requestId.middleware.js";
+import authRouter from './routes/auth.routes.js';
 import {
   generalRateLimiter,
   authRateLimiter,
@@ -29,6 +30,7 @@ app.use("/api/", generalRateLimiter);
 app.use("/api/v1/auth/login", authRateLimiter);
 
 app.use(requestId);
+app.use("/api/auth", authRouter);
 
 app.use("/api/v1/attendance", attendanceRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
