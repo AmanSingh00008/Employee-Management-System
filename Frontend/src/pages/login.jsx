@@ -9,7 +9,7 @@ import {
   Users,
 } from "lucide-react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/authContext.jsx";
 
 function Login() {
   const { user, login } = useAuth();

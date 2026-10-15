@@ -552,7 +552,7 @@ function Settings() {
                       </button>
                     </div>
                   </div>
-                )}
+                ))}
 
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                   <p className="text-sm font-medium text-amber-900">

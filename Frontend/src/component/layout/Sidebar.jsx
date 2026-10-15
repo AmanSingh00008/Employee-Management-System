@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/authContext.jsx";
 
 const { user, logout } = useAuth();
 const navigate = useNavigate();

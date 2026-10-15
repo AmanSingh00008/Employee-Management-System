@@ -6,11 +6,11 @@ import {
   Routes,
 } from "react-router-dom";
 
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/authContext.jsx";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 import DashboardLayout from "./layouts/DashboardLayout";
-import Login from "./pages/Login";
+import Login from "./pages/login.jsx";
 import Register from "./pages/Register";
 
 import Dashboard from "./pages/Dashboard";
