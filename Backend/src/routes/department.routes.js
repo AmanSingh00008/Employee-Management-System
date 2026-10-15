@@ -25,4 +25,36 @@ router
   .patch(updateDepartment)
   .delete(deleteDepartment);
 
+  router.use(verifyJWT);
+
+router.post(
+  "/",
+  authorizeRoles("super_admin", "hr_admin"),
+  createDepartment
+);
+
+router.get(
+  "/",
+  authorizeRoles("super_admin", "hr_admin", "manager", "employee"),
+  getDepartments
+);
+
+router.get(
+  "/:id",
+  authorizeRoles("super_admin", "hr_admin", "manager", "employee"),
+  getDepartmentById
+);
+
+router.patch(
+  "/:id",
+  authorizeRoles("super_admin", "hr_admin"),
+  updateDepartment
+);
+
+router.delete(
+  "/:id",
+  authorizeRoles("super_admin", "hr_admin"),
+  deleteDepartment
+);
+
 export default router;

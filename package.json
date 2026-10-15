@@ -8,6 +8,7 @@
         "preview": "npm run preview --prefix \"Employee Management System\""
     },
     "dependencies": {
-        "express-rate-limit": "^8.7.1"
+        "express-rate-limit": "^8.7.1",
+        "multer": "^2.4.0"
     }
 }

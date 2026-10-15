@@ -7,9 +7,32 @@ export const authorizeRoles = (...allowedRoles) => {
     }
 
     if (!allowedRoles.includes(req.user.role)) {
-      return next(
-        new ApiError(403, "You do not have permission to perform this action")
-      );
+      return next(new ApiError(403, "Access denied"));
+    }
+
+    next();
+  };
+};
+
+export const authorizeSelfOrRoles = (
+  getTargetUserId,
+  ...allowedRoles
+) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return next(new ApiError(401, "Authentication required"));
+    }
+
+    const targetUserId = getTargetUserId(req);
+
+    const isSelf =
+      targetUserId &&
+      String(targetUserId) === String(req.user._id);
+
+    const hasRole = allowedRoles.includes(req.user.role);
+
+    if (!isSelf && !hasRole) {
+      return next(new ApiError(403, "Access denied"));
     }
 
     next();
