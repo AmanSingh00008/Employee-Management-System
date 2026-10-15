@@ -26,17 +26,17 @@ function Login() {
   const inputClass =
     "w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
     setSubmitting(true);
 
     try {
-      login(form);
+      await login(form);
       const destination = location.state?.from?.pathname || "/";
       navigate(destination, { replace: true });
     } catch (err) {
-      setError(err.message || "Unable to log in.");
+      setError(err.response?.data?.message || err.message || "Unable to log in.");
     } finally {
       setSubmitting(false);
     }
@@ -193,8 +193,7 @@ function Login() {
           </p>
 
           <p className="mt-8 text-center text-xs leading-5 text-slate-400">
-            Frontend demo authentication. Do not use real or sensitive
-            credentials.
+            Do not use real or sensitive credentials in test environments.
           </p>
         </div>
       </div>

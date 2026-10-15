@@ -17,7 +17,7 @@ function Register() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    fullName: "",
+    name: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -30,7 +30,9 @@ function Register() {
   const inputClass =
     "w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
 
-  const handleSubmit = (event) => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
 
@@ -44,15 +46,18 @@ function Register() {
       return;
     }
 
+    setSubmitting(true);
     try {
-      register({
-        fullName: form.fullName,
+      await register({
+        name: form.name,
         email: form.email,
         password: form.password,
       });
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err.message || "Unable to create account.");
+      setError(err.response?.data?.message || err.message || "Unable to create account.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -125,9 +130,9 @@ function Register() {
                 <input
                   required
                   autoComplete="name"
-                  value={form.fullName}
+                  value={form.name}
                   onChange={(event) =>
-                    setForm({ ...form, fullName: event.target.value })
+                    setForm({ ...form, name: event.target.value })
                   }
                   placeholder="Your full name"
                   className={inputClass}
@@ -217,9 +222,10 @@ function Register() {
 
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+              disabled={submitting}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-60"
             >
-              Create account
+              {submitting ? "Creating account..." : "Create account"}
               <ArrowRight size={18} />
             </button>
           </form>
@@ -235,7 +241,7 @@ function Register() {
           </p>
 
           <p className="mt-7 text-center text-xs leading-5 text-slate-400">
-            Demo registration only. Do not enter real or sensitive credentials.
+            Do not use real or sensitive credentials in test environments.
           </p>
         </div>
       </div>

@@ -7,7 +7,7 @@ import {
 } from "react-router-dom";
 
 import { AuthProvider, useAuth } from "./context/authContext.jsx";
-import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedRoute from "./component/protectedRoute";
 
 import DashboardLayout from "./layouts/DashboardLayout";
 import Login from "./pages/login.jsx";

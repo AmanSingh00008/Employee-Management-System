@@ -1,101 +1,73 @@
-
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useState,
 } from "react";
+import api, { clearAccessToken, setAccessToken } from "../utils/axios.js";
 
 const AuthContext = createContext(null);
-const USERS_KEY = "workforcehub_demo_users";
-const SESSION_KEY = "workforcehub_demo_session";
-
-function readUsers() {
-  try {
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
-    return Array.isArray(users) ? users : [];
-  } catch {
-    return [];
-  }
-}
-
-function readSession() {
-  try {
-    return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
-  } catch {
-    return null;
-  }
-}
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(readSession);
-  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState(null);
+  // true while we are checking whether there is an existing session on mount
+  const [initializing, setInitializing] = useState(true);
 
+  // On mount: try to restore session using the httpOnly refreshToken cookie.
   useEffect(() => {
-    if (user) {
-      localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-    } else {
-      localStorage.removeItem(SESSION_KEY);
-    }
-  }, [user]);
+    (async () => {
+      try {
+        // Ask the server for a new access token using the cookie
+        const { data } = await api.get("/api/auth/refresh-token");
+        setAccessToken(data.accessToken);
 
-  const register = ({ fullName, email, password }) => {
-    const normalizedEmail = email.trim().toLowerCase();
-    const users = readUsers();
+        // Fetch user profile with the fresh access token
+        const meRes = await api.get("/api/auth/get-me");
+        setUser(meRes.data.user);
+      } catch {
+        // No valid session — stay logged out
+        clearAccessToken();
+        setUser(null);
+      } finally {
+        setInitializing(false);
+      }
+    })();
+  }, []);
 
-    if (users.some((item) => item.email === normalizedEmail)) {
-      throw new Error("An account with this email already exists.");
-    }
-
-    // DEMO ONLY: Never store plain-text passwords in production.
-    const newUser = {
-      id: crypto.randomUUID(),
-      fullName: fullName.trim(),
-      email: normalizedEmail,
+  // ─── Register ─────────────────────────────────────────────────────────────
+  const register = useCallback(async ({ name, email, password }) => {
+    const { data } = await api.post("/api/auth/register", {
+      name,
+      email,
       password,
-    };
+    });
+    setAccessToken(data.accessToken);
+    setUser(data.user);
+    return data.user;
+  }, []);
 
-    localStorage.setItem(USERS_KEY, JSON.stringify([...users, newUser]));
+  // ─── Login ────────────────────────────────────────────────────────────────
+  const login = useCallback(async ({ email, password }) => {
+    const { data } = await api.post("/api/auth/login", { email, password });
+    setAccessToken(data.accessToken);
+    setUser(data.user);
+    return data.user;
+  }, []);
 
-    const sessionUser = {
-      id: newUser.id,
-      fullName: newUser.fullName,
-      email: newUser.email,
-    };
-
-    setUser(sessionUser);
-    return sessionUser;
-  };
-
-  const login = ({ email, password }) => {
-    const normalizedEmail = email.trim().toLowerCase();
-    const existingUser = readUsers().find(
-      (item) =>
-        item.email === normalizedEmail && item.password === password
-    );
-
-    if (!existingUser) {
-      throw new Error("Invalid email or password.");
+  // ─── Logout ───────────────────────────────────────────────────────────────
+  const logout = useCallback(async () => {
+    try {
+      await api.get("/api/auth/logout");
+    } catch {
+      // Proceed regardless — clear client state
     }
-
-    const sessionUser = {
-      id: existingUser.id,
-      fullName: existingUser.fullName,
-      email: existingUser.email,
-    };
-
-    setUser(sessionUser);
-    return sessionUser;
-  };
-
-  const logout = () => {
+    clearAccessToken();
     setUser(null);
-  };
+  }, []);
 
   return (
-    <AuthContext.Provider
-      value={{ user, loading, setLoading, register, login, logout }}
-    >
+    <AuthContext.Provider value={{ user, initializing, register, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -103,10 +75,8 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-
   if (!context) {
     throw new Error("useAuth must be used inside AuthProvider.");
   }
-
   return context;
 }
