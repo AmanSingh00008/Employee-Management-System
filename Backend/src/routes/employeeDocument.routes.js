@@ -1,8 +1,8 @@
 
 import { Router } from "express";
-import { verifyJWT } from "../middleware/auth.middleware.js";
-import { authorizeRoles } from "../middleware/authorize.middleware.js";
-import { uploadSingleDocument } from "../middleware/upload.middleware.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { authorizeRoles } from "../middlewares/authorize.middleware.js";
+import { uploadSingleDocument } from "../middlewares/upload.middleware.js";
 
 import {
   createEmployeeDocument,

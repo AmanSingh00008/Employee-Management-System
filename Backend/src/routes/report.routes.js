@@ -1,6 +1,6 @@
 
 import { Router } from "express";
-import { verifyJWT } from "../middleware/auth.middleware.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 import {
   exportEmployeeReport,
@@ -9,12 +9,11 @@ import {
 } from "../controllers/report.controller.js";
 import { getMyReportHistory } from "../controllers/reportHistory.controller.js";
 
-router.get("/history", getMyReportHistory);
-
 const router = Router();
 
 router.use(verifyJWT);
 
+router.get("/history", getMyReportHistory);
 router.get("/employees", exportEmployeeReport);
 router.get("/attendance", exportAttendanceReport);
 router.get("/leave-requests", exportLeaveReport);

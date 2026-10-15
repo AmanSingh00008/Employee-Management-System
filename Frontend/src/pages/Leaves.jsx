@@ -1,5 +1,7 @@
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { fetchLeaveRequests } from "../services/workforceApi.js";
+import { mapLeaveRequest } from "../utils/workforceMappers.js";
 import {
   Plus,
   Search,
@@ -19,113 +21,6 @@ import {
   Heart,
   Filter,
 } from "lucide-react";
-
-const initialLeaves = [
-  {
-    id: 1,
-    employee: "Aarav Sharma",
-    initials: "AS",
-    department: "Engineering",
-    type: "Casual Leave",
-    from: "2026-10-20",
-    to: "2026-10-22",
-    days: 3,
-    reason: "Family function at home.",
-    status: "Pending",
-    appliedOn: "2026-10-12",
-  },
-  {
-    id: 2,
-    employee: "Priya Patel",
-    initials: "PP",
-    department: "Human Resources",
-    type: "Sick Leave",
-    from: "2026-10-16",
-    to: "2026-10-17",
-    days: 2,
-    reason: "Not feeling well and need rest.",
-    status: "Approved",
-    appliedOn: "2026-10-14",
-  },
-  {
-    id: 3,
-    employee: "Rohan Mehta",
-    initials: "RM",
-    department: "Engineering",
-    type: "Earned Leave",
-    from: "2026-10-25",
-    to: "2026-10-29",
-    days: 5,
-    reason: "Planned family vacation.",
-    status: "Pending",
-    appliedOn: "2026-10-15",
-  },
-  {
-    id: 4,
-    employee: "Neha Shah",
-    initials: "NS",
-    department: "Marketing",
-    type: "Casual Leave",
-    from: "2026-10-18",
-    to: "2026-10-18",
-    days: 1,
-    reason: "Personal work.",
-    status: "Rejected",
-    appliedOn: "2026-10-13",
-  },
-  {
-    id: 5,
-    employee: "Karan Joshi",
-    initials: "KJ",
-    department: "Finance",
-    type: "Sick Leave",
-    from: "2026-10-21",
-    to: "2026-10-21",
-    days: 1,
-    reason: "Doctor appointment.",
-    status: "Pending",
-    appliedOn: "2026-10-16",
-  },
-  {
-    id: 6,
-    employee: "Ananya Desai",
-    initials: "AD",
-    department: "Design",
-    type: "Earned Leave",
-    from: "2026-10-10",
-    to: "2026-10-12",
-    days: 3,
-    reason: "Personal vacation.",
-    status: "Approved",
-    appliedOn: "2026-10-05",
-  },
-  {
-    id: 7,
-    employee: "Dev Verma",
-    initials: "DV",
-    department: "Sales",
-    type: "Casual Leave",
-    from: "2026-10-27",
-    to: "2026-10-28",
-    days: 2,
-    reason: "Family commitment.",
-    status: "Pending",
-    appliedOn: "2026-10-16",
-  },
-  {
-    id: 8,
-    employee: "Isha Trivedi",
-    initials: "IT",
-    department: "Operations",
-    type: "Sick Leave",
-    from: "2026-10-08",
-    to: "2026-10-09",
-    days: 2,
-    reason: "Recovering from illness.",
-    status: "Approved",
-    appliedOn: "2026-10-07",
-  },
-];
 
 const emptyForm = {
   employee: "",
@@ -498,7 +393,9 @@ function LeaveDetails({ leave, onClose, onStatusChange }) {
 }
 
 export default function Leaves() {
-  const [leaves, setLeaves] = useState(initialLeaves);
+  const [leaves, setLeaves] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
@@ -507,6 +404,36 @@ export default function Leaves() {
   const [selectedLeave, setSelectedLeave] = useState(null);
 
   const pageSize = 6;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      setLoadError("");
+      try {
+        const rows = await fetchLeaveRequests();
+        if (!cancelled) {
+          setLeaves(rows.map(mapLeaveRequest));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setLeaves([]);
+          setLoadError(
+            err.response?.data?.message || "Could not load leave requests from the server."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const summary = useMemo(
     () => ({
@@ -591,6 +518,16 @@ export default function Leaves() {
   return (
     <div className="min-h-screen bg-gray-50/70 px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
+        {loadError && (
+          <div role="alert" className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+            {loadError}
+          </div>
+        )}
+
+        {loading && !loadError && (
+          <p className="text-sm text-gray-500">Loading leave requests from the server…</p>
+        )}
+
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2 text-sm text-gray-500">

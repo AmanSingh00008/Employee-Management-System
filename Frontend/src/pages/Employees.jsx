@@ -1,5 +1,7 @@
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { fetchEmployees } from "../services/workforceApi.js";
+import { mapEmployee } from "../utils/workforceMappers.js";
 import {
   Plus,
   Search,
@@ -17,21 +19,6 @@ import {
   BriefcaseBusiness,
   CalendarDays,
 } from "lucide-react";
-
-const initialEmployees = [
-  { id: 1, name: "Aarav Sharma", email: "aarav@workforcehub.com", department: "Engineering", designation: "Frontend Developer", status: "Active", joined: "2026-01-12", type: "Full-time" },
-  { id: 2, name: "Priya Patel", email: "priya@workforcehub.com", department: "Marketing", designation: "Marketing Manager", status: "Active", joined: "2025-11-05", type: "Full-time" },
-  { id: 3, name: "Rohan Verma", email: "rohan@workforcehub.com", department: "Engineering", designation: "Backend Developer", status: "On Leave", joined: "2025-08-18", type: "Full-time" },
-  { id: 4, name: "Ananya Singh", email: "ananya@workforcehub.com", department: "Human Resources", designation: "HR Executive", status: "Active", joined: "2026-03-20", type: "Full-time" },
-  { id: 5, name: "Kabir Mehta", email: "kabir@workforcehub.com", department: "Sales", designation: "Sales Executive", status: "Inactive", joined: "2024-07-10", type: "Contract" },
-  { id: 6, name: "Meera Joshi", email: "meera@workforcehub.com", department: "Finance", designation: "Accountant", status: "Active", joined: "2025-09-15", type: "Full-time" },
-  { id: 7, name: "Dev Shah", email: "dev@workforcehub.com", department: "Engineering", designation: "QA Engineer", status: "Active", joined: "2026-02-01", type: "Full-time" },
-  { id: 8, name: "Riya Kapoor", email: "riya@workforcehub.com", department: "Design", designation: "UI/UX Designer", status: "On Leave", joined: "2025-12-11", type: "Part-time" },
-  { id: 9, name: "Ishaan Gupta", email: "ishaan@workforcehub.com", department: "Sales", designation: "Sales Manager", status: "Active", joined: "2024-10-21", type: "Full-time" },
-  { id: 10, name: "Nisha Desai", email: "nisha@workforcehub.com", department: "Human Resources", designation: "Recruiter", status: "Active", joined: "2026-04-02", type: "Full-time" },
-  { id: 11, name: "Arjun Rao", email: "arjun@workforcehub.com", department: "Finance", designation: "Financial Analyst", status: "Active", joined: "2025-05-14", type: "Full-time" },
-  { id: 12, name: "Simran Kaur", email: "simran@workforcehub.com", department: "Design", designation: "Product Designer", status: "Inactive", joined: "2024-12-03", type: "Contract" },
-];
 
 const departments = [
   "Engineering",
@@ -254,7 +241,9 @@ function EmployeeDetails({ employee, onClose, onEdit }) {
 }
 
 function Employees() {
-  const [employees, setEmployees] = useState(initialEmployees);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("All Departments");
   const [statusFilter, setStatusFilter] = useState("All Statuses");
@@ -265,6 +254,36 @@ function Employees() {
   const [notice, setNotice] = useState("");
 
   const pageSize = 6;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      setLoadError("");
+      try {
+        const rows = await fetchEmployees();
+        if (!cancelled) {
+          setEmployees(rows.map(mapEmployee));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setEmployees([]);
+          setLoadError(
+            err.response?.data?.message || "Could not load employees from the server."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filteredEmployees = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -389,6 +408,16 @@ function Employees() {
           <Plus size={18} /> Add Employee
         </button>
       </section>
+
+      {loadError && (
+        <div role="alert" className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          {loadError}
+        </div>
+      )}
+
+      {loading && !loadError && (
+        <p className="text-sm text-slate-500">Loading employees from the server…</p>
+      )}
 
       {notice && (
         <div role="status" className="flex items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">

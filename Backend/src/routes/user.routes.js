@@ -8,8 +8,8 @@ import {
   deactivateUser,
 } from "../controllers/user.controller.js";
 
-import { verifyJWT } from "../middleware/auth.middleware.js";
-import { authorizeRoles } from "../middleware/authorize.middleware.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { authorizeRoles } from "../middlewares/authorize.middleware.js";
 
 const router = Router();
 

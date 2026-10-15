@@ -1,5 +1,7 @@
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { fetchAssets } from "../services/workforceApi.js";
+import { mapAsset } from "../utils/workforceMappers.js";
 import {
   Plus,
   Search,
@@ -21,139 +23,6 @@ import {
   CalendarDays,
   Tag,
 } from "lucide-react";
-
-const initialAssets = [
-  {
-    id: 1,
-    name: "HP ProBook 450",
-    category: "Laptop",
-    assetTag: "AST-1001",
-    serialNumber: "HP-PB-2401",
-    assignedTo: "Aarav Sharma",
-    department: "Engineering",
-    purchaseDate: "2025-01-15",
-    status: "Assigned",
-    condition: "Good",
-    notes: "Development laptop",
-  },
-  {
-    id: 2,
-    name: "Dell UltraSharp 24",
-    category: "Monitor",
-    assetTag: "AST-1002",
-    serialNumber: "DE-MN-8821",
-    assignedTo: "Priya Patel",
-    department: "Human Resources",
-    purchaseDate: "2025-02-10",
-    status: "Assigned",
-    condition: "Good",
-    notes: "",
-  },
-  {
-    id: 3,
-    name: "Logitech MX Keyboard",
-    category: "Keyboard",
-    assetTag: "AST-1003",
-    serialNumber: "LG-KB-1108",
-    assignedTo: "",
-    department: "Engineering",
-    purchaseDate: "2025-03-12",
-    status: "Available",
-    condition: "Good",
-    notes: "",
-  },
-  {
-    id: 4,
-    name: "Sony WH-CH720N",
-    category: "Headphones",
-    assetTag: "AST-1004",
-    serialNumber: "SN-HD-3302",
-    assignedTo: "Rohan Mehta",
-    department: "Engineering",
-    purchaseDate: "2025-04-05",
-    status: "Assigned",
-    condition: "Good",
-    notes: "Wireless headphones",
-  },
-  {
-    id: 5,
-    name: "Samsung Galaxy A55",
-    category: "Mobile",
-    assetTag: "AST-1005",
-    serialNumber: "SM-MB-5001",
-    assignedTo: "",
-    department: "Sales",
-    purchaseDate: "2025-05-18",
-    status: "Available",
-    condition: "Good",
-    notes: "",
-  },
-  {
-    id: 6,
-    name: "Lenovo ThinkPad E14",
-    category: "Laptop",
-    assetTag: "AST-1006",
-    serialNumber: "LN-LT-6651",
-    assignedTo: "Neha Shah",
-    department: "Marketing",
-    purchaseDate: "2024-11-20",
-    status: "Assigned",
-    condition: "Fair",
-    notes: "Minor scratches on lid",
-  },
-  {
-    id: 7,
-    name: "HP 24-inch Monitor",
-    category: "Monitor",
-    assetTag: "AST-1007",
-    serialNumber: "HP-MN-4421",
-    assignedTo: "",
-    department: "Design",
-    purchaseDate: "2025-06-22",
-    status: "Maintenance",
-    condition: "Needs Repair",
-    notes: "Display flickering",
-  },
-  {
-    id: 8,
-    name: "Logitech M331 Mouse",
-    category: "Other",
-    assetTag: "AST-1008",
-    serialNumber: "LG-MS-7781",
-    assignedTo: "Karan Joshi",
-    department: "Finance",
-    purchaseDate: "2025-07-01",
-    status: "Assigned",
-    condition: "Good",
-    notes: "",
-  },
-  {
-    id: 9,
-    name: "Dell Latitude 5450",
-    category: "Laptop",
-    assetTag: "AST-1009",
-    serialNumber: "DE-LT-1200",
-    assignedTo: "",
-    department: "Engineering",
-    purchaseDate: "2025-08-11",
-    status: "Available",
-    condition: "Good",
-    notes: "Ready for allocation",
-  },
-  {
-    id: 10,
-    name: "Jabra Evolve2 40",
-    category: "Headphones",
-    assetTag: "AST-1010",
-    serialNumber: "JB-HD-2910",
-    assignedTo: "Ananya Desai",
-    department: "Design",
-    purchaseDate: "2025-09-08",
-    status: "Assigned",
-    condition: "Good",
-    notes: "",
-  },
-];
 
 const categories = [
   "Laptop",
@@ -593,7 +462,9 @@ function AssetDetails({ asset, onClose, onEdit }) {
 }
 
 export default function Assets() {
-  const [assets, setAssets] = useState(initialAssets);
+  const [assets, setAssets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
@@ -603,6 +474,36 @@ export default function Assets() {
   const [selectedAsset, setSelectedAsset] = useState(null);
 
   const pageSize = 6;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      setLoadError("");
+      try {
+        const rows = await fetchAssets();
+        if (!cancelled) {
+          setAssets(rows.map(mapAsset));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setAssets([]);
+          setLoadError(
+            err.response?.data?.message || "Could not load assets from the server."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const summary = useMemo(
     () => ({
@@ -745,6 +646,16 @@ export default function Assets() {
   return (
     <div className="min-h-screen bg-gray-50/70 px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
+        {loadError && (
+          <div role="alert" className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+            {loadError}
+          </div>
+        )}
+
+        {loading && !loadError && (
+          <p className="text-sm text-gray-500">Loading assets from the server…</p>
+        )}
+
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2 text-sm text-gray-500">

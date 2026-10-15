@@ -1,17 +1,25 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
 
 import { env } from "./config/env.js";
 import { ApiError } from "./utils/ApiError.js";
-import { notFound } from "./middleware/notFound.js";
-import { errorHandler } from "./middleware/errorHandler.js";
+import { notFound } from "./middlewares/notFound.js";
+import { errorHandler } from "./middlewares/errorHandler.js";
+import { requestId } from "./middlewares/requestId.middleware.js";
+import {
+  generalRateLimiter,
+  authRateLimiter,
+} from "./middlewares/rateLimit.middleware.js";
+
+import authRouter from "./routes/auth.routes.js";
 import departmentRoutes from "./routes/department.routes.js";
-import refreshSessionRoutes from "./routes/refreshSession.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import employeeRoutes from "./routes/employee.routes.js";
 import leaveTypeRoutes from "./routes/leaveType.routes.js";
 import leaveBalanceRoutes from "./routes/leaveBalance.routes.js";
+import leaveRequestRoutes from "./routes/leaveRequest.routes.js";
 import attendanceRoutes from "./routes/attendance.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import assetRoutes from "./routes/asset.routes.js";
@@ -19,74 +27,41 @@ import assetAssignmentRoutes from "./routes/assetAssignment.routes.js";
 import employeeDocumentRoutes from "./routes/employeeDocument.routes.js";
 import auditLogRoutes from "./routes/auditLog.routes.js";
 import refreshSessionRoutes from "./routes/refreshSession.routes.js";
-import { requestId } from "./middleware/requestId.middleware.js";
-import authRouter from './routes/auth.routes.js';
-import {
-  generalRateLimiter,
-  authRateLimiter,
-} from "./middleware/rateLimit.middleware.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import reportRoutes from "./routes/report.routes.js";
 
-app.use("/api/v1/reports", reportRoutes);
-
-app.use("/api/v1/dashboard", dashboardRoutes);
-app.use("/api/", generalRateLimiter);
-app.use("/api/v1/auth/login", authRateLimiter);
-
-app.use(requestId);
-app.use("/api/auth", authRouter);
-
-app.use("/api/v1/attendance", attendanceRoutes);
-app.use("/api/v1/notifications", notificationRoutes);
-app.use("/api/v1/assets", assetRoutes);
-app.use("/api/v1/asset-assignments", assetAssignmentRoutes);
-app.use("/api/v1/employee-documents", employeeDocumentRoutes);
-app.use("/api/v1/audit-logs", auditLogRoutes);
-app.use("/api/v1/sessions", refreshSessionRoutes);
-
-app.use("/api/v1/leave-balances", leaveBalanceRoutes);
-
-app.use("/api/v1/leave-types", leaveTypeRoutes);
-app.use("/api/v1/sessions", refreshSessionRoutes);
-
-app.use("/api/v1/departments", departmentRoutes);
-app.use("/api/v1/employees", employeeRoutes);
-app.use("/api/v1/users", userRoutes);
-
+// ─── App ────────────────────────────────────────────────────────────────────
 const app = express();
 
-// Security-related HTTP headers.
+// ─── Security Headers ───────────────────────────────────────────────────────
 app.use(helmet());
 
-// Allow only configured frontend origins.
+// ─── CORS ────────────────────────────────────────────────────────────────────
 app.use(
   cors({
     origin(origin, callback) {
-      // Allow requests without an Origin header, such as
-      // many server-to-server and command-line requests.
       if (!origin || env.CORS_ORIGINS.includes(origin)) {
         return callback(null, true);
       }
-
       return callback(new ApiError(403, "Origin not allowed by CORS"));
     },
     credentials: true,
-  }),
+  })
 );
 
-// Parse JSON request bodies with a size limit.
+// ─── Body & Cookie Parsers ──────────────────────────────────────────────────
 app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+app.use(cookieParser());
 
-// Parse URL-encoded form bodies.
-app.use(
-  express.urlencoded({
-    extended: true,
-    limit: "1mb",
-  }),
-);
+// ─── Request ID ─────────────────────────────────────────────────────────────
+app.use(requestId);
 
-// Basic health endpoint.
+// ─── Rate Limiting ───────────────────────────────────────────────────────────
+app.use("/api/", generalRateLimiter);
+app.use("/api/auth/login", authRateLimiter);
+
+// ─── Health ──────────────────────────────────────────────────────────────────
 app.get("/api/v1/health", (req, res) => {
   res.status(200).json({
     success: true,
@@ -95,10 +70,27 @@ app.get("/api/v1/health", (req, res) => {
   });
 });
 
-// Register feature routes here as the project grows.
-// Example: app.use("/api/v1/auth", authRoutes);
+// ─── Auth Routes ─────────────────────────────────────────────────────────────
+app.use("/api/auth", authRouter);
 
-// Handle unknown routes and errors LAST.
+// ─── Feature Routes ──────────────────────────────────────────────────────────
+app.use("/api/v1/departments", departmentRoutes);
+app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/employees", employeeRoutes);
+app.use("/api/v1/leave-types", leaveTypeRoutes);
+app.use("/api/v1/leave-balances", leaveBalanceRoutes);
+app.use("/api/v1/leave-requests", leaveRequestRoutes);
+app.use("/api/v1/attendance", attendanceRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/assets", assetRoutes);
+app.use("/api/v1/asset-assignments", assetAssignmentRoutes);
+app.use("/api/v1/employee-documents", employeeDocumentRoutes);
+app.use("/api/v1/audit-logs", auditLogRoutes);
+app.use("/api/v1/sessions", refreshSessionRoutes);
+app.use("/api/v1/dashboard", dashboardRoutes);
+app.use("/api/v1/reports", reportRoutes);
+
+// ─── Error Handling (must be last) ──────────────────────────────────────────
 app.use(notFound);
 app.use(errorHandler);
 

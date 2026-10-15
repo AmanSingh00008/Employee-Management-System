@@ -1,5 +1,7 @@
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { fetchAttendanceRecords } from "../services/workforceApi.js";
+import { mapAttendanceRecord } from "../utils/workforceMappers.js";
 import {
   CalendarDays,
   Clock3,
@@ -19,109 +21,6 @@ import {
 } from "lucide-react";
 
 const today = new Date().toLocaleDateString("en-CA");
-
-const initialAttendance = [
-  {
-    id: 1,
-    employee: "Aarav Sharma",
-    department: "Engineering",
-    date: today,
-    checkIn: "09:05 AM",
-    checkOut: "06:02 PM",
-    status: "Present",
-    notes: "",
-  },
-  {
-    id: 2,
-    employee: "Priya Patel",
-    department: "Human Resources",
-    date: today,
-    checkIn: "09:28 AM",
-    checkOut: "06:10 PM",
-    status: "Late",
-    notes: "Traffic delay",
-  },
-  {
-    id: 3,
-    employee: "Rohan Mehta",
-    department: "Engineering",
-    date: today,
-    checkIn: "08:55 AM",
-    checkOut: "",
-    status: "Present",
-    notes: "",
-  },
-  {
-    id: 4,
-    employee: "Neha Shah",
-    department: "Marketing",
-    date: today,
-    checkIn: "",
-    checkOut: "",
-    status: "Absent",
-    notes: "",
-  },
-  {
-    id: 5,
-    employee: "Karan Joshi",
-    department: "Finance",
-    date: today,
-    checkIn: "09:15 AM",
-    checkOut: "",
-    status: "Late",
-    notes: "",
-  },
-  {
-    id: 6,
-    employee: "Ananya Desai",
-    department: "Design",
-    date: today,
-    checkIn: "08:48 AM",
-    checkOut: "05:45 PM",
-    status: "Present",
-    notes: "",
-  },
-  {
-    id: 7,
-    employee: "Dev Verma",
-    department: "Sales",
-    date: today,
-    checkIn: "08:58 AM",
-    checkOut: "",
-    status: "Present",
-    notes: "",
-  },
-  {
-    id: 8,
-    employee: "Isha Trivedi",
-    department: "Operations",
-    date: today,
-    checkIn: "",
-    checkOut: "",
-    status: "On Leave",
-    notes: "Approved leave",
-  },
-  {
-    id: 9,
-    employee: "Rahul Singh",
-    department: "Engineering",
-    date: today,
-    checkIn: "09:02 AM",
-    checkOut: "",
-    status: "Present",
-    notes: "",
-  },
-  {
-    id: 10,
-    employee: "Meera Joshi",
-    department: "Marketing",
-    date: today,
-    checkIn: "09:22 AM",
-    checkOut: "",
-    status: "Late",
-    notes: "",
-  },
-];
 
 const departments = [
   "Engineering",
@@ -505,7 +404,9 @@ function toDisplayTime(value) {
 }
 
 export default function Attendance() {
-  const [records, setRecords] = useState(initialAttendance);
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [departmentFilter, setDepartmentFilter] = useState("All");
@@ -516,6 +417,36 @@ export default function Attendance() {
   const [selectedRecord, setSelectedRecord] = useState(null);
 
   const pageSize = 6;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      setLoadError("");
+      try {
+        const rows = await fetchAttendanceRecords();
+        if (!cancelled) {
+          setRecords(rows.map(mapAttendanceRecord));
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setRecords([]);
+          setLoadError(
+            err.response?.data?.message || "Could not load attendance from the server."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const dateRecords = useMemo(
     () => records.filter((record) => record.date === selectedDate),
@@ -662,6 +593,16 @@ export default function Attendance() {
   return (
     <div className="min-h-screen bg-gray-50/70 px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
+        {loadError && (
+          <div role="alert" className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+            {loadError}
+          </div>
+        )}
+
+        {loading && !loadError && (
+          <p className="text-sm text-gray-500">Loading attendance from the server…</p>
+        )}
+
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2 text-sm text-gray-500">
