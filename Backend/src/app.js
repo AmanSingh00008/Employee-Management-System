@@ -1,4 +1,3 @@
-
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -13,7 +12,21 @@ import userRoutes from "./routes/user.routes.js";
 import employeeRoutes from "./routes/employee.routes.js";
 import leaveTypeRoutes from "./routes/leaveType.routes.js";
 import leaveBalanceRoutes from "./routes/leaveBalance.routes.js";
-i
+import attendanceRoutes from "./routes/attendance.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
+import assetRoutes from "./routes/asset.routes.js";
+import assetAssignmentRoutes from "./routes/assetAssignment.routes.js";
+import employeeDocumentRoutes from "./routes/employeeDocument.routes.js";
+import auditLogRoutes from "./routes/auditLog.routes.js";
+import refreshSessionRoutes from "./routes/refreshSession.routes.js";
+
+app.use("/api/v1/attendance", attendanceRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/assets", assetRoutes);
+app.use("/api/v1/asset-assignments", assetAssignmentRoutes);
+app.use("/api/v1/employee-documents", employeeDocumentRoutes);
+app.use("/api/v1/audit-logs", auditLogRoutes);
+app.use("/api/v1/sessions", refreshSessionRoutes);
 
 app.use("/api/v1/leave-balances", leaveBalanceRoutes);
 
@@ -39,12 +52,10 @@ app.use(
         return callback(null, true);
       }
 
-      return callback(
-        new ApiError(403, "Origin not allowed by CORS")
-      );
+      return callback(new ApiError(403, "Origin not allowed by CORS"));
     },
     credentials: true,
-  })
+  }),
 );
 
 // Parse JSON request bodies with a size limit.
@@ -55,7 +66,7 @@ app.use(
   express.urlencoded({
     extended: true,
     limit: "1mb",
-  })
+  }),
 );
 
 // Basic health endpoint.
