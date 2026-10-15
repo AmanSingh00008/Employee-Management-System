@@ -1,10 +1,19 @@
-router.use(verifyJWT);
 
-router.post(
-  "/",
-  authorizeRoles("super_admin", "hr_admin"),
-  createEmployee
-);
+import { Router } from "express";
+import { verifyJWT } from "../middleware/auth.middleware.js";
+import { authorizeRoles } from "../middleware/authorize.middleware.js";
+
+import {
+  createEmployee,
+  getEmployees,
+  getEmployeeById,
+  updateEmployee,
+  deactivateEmployee,
+} from "../controllers/employee.controller.js";
+
+const router = Router();
+
+router.use(verifyJWT);
 
 router.get(
   "/",
@@ -12,7 +21,17 @@ router.get(
   getEmployees
 );
 
-router.get("/:id", getEmployeeById);
+router.get(
+  "/:id",
+  authorizeRoles("super_admin", "hr_admin", "manager"),
+  getEmployeeById
+);
+
+router.post(
+  "/",
+  authorizeRoles("super_admin", "hr_admin"),
+  createEmployee
+);
 
 router.patch(
   "/:id",
@@ -20,8 +39,10 @@ router.patch(
   updateEmployee
 );
 
-router.delete(
-  "/:id",
+router.patch(
+  "/:id/deactivate",
   authorizeRoles("super_admin", "hr_admin"),
   deactivateEmployee
 );
+
+export default router;

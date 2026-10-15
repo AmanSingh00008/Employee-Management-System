@@ -26,6 +26,31 @@ const employeeFields = [
   "address",
 ];
 
+export const validateActiveDepartment = async (departmentId) => {
+  if (!departmentId) {
+    throw new ApiError(400, "Department is required");
+  }
+
+  if (!mongoose.isValidObjectId(departmentId)) {
+    throw new ApiError(400, "Invalid department ID");
+  }
+
+  const department = await Department.findOne({
+    _id: departmentId,
+    isActive: true,
+  }).select("_id name");
+
+  if (!department) {
+    throw new ApiError(
+      400,
+      "Department does not exist or is inactive"
+    );
+  }
+
+  return department;
+};
+
+
 const validateEmployeeReferences = async ({
   departmentId,
   managerId,
