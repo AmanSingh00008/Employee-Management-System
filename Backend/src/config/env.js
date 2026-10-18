@@ -24,8 +24,11 @@ export const env = {
   ACCESS_TOKEN_TTL: optional("ACCESS_TOKEN_TTL", "15m"),
   REFRESH_TOKEN_TTL_DAYS: parseInt(optional("REFRESH_TOKEN_TTL_DAYS", "7"), 10),
 
-  // Comma-separated list → array
-  CORS_ORIGINS: optional("CORS_ORIGINS", "http://localhost:5173")
+  // Comma-separated list → array. Include common dev ports (5173, 5174, and 5175).
+  CORS_ORIGINS: optional(
+    "CORS_ORIGINS",
+    "http://localhost:5173,http://localhost:5174,http://localhost:5175"
+  )
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean),

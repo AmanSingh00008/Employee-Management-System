@@ -1,6 +1,6 @@
 
 import { useEffect, useMemo, useState } from "react";
-import { fetchAttendanceRecords } from "../services/workforceApi.js";
+import { fetchAttendanceRecords, createAttendance, updateAttendance, fetchEmployees } from "../services/workforceApi.js";
 import { mapAttendanceRecord } from "../utils/workforceMappers.js";
 import {
   CalendarDays,
@@ -35,8 +35,7 @@ const departments = [
 const statuses = ["Present", "Absent", "Late", "On Leave"];
 
 const emptyForm = {
-  employee: "",
-  department: "Engineering",
+  employeeId: "",
   date: today,
   checkIn: "",
   checkOut: "",
@@ -101,10 +100,16 @@ function SummaryCard({ title, value, subtitle, icon: Icon, color }) {
   );
 }
 
-function AttendanceModal({ attendance, onClose, onSave }) {
-  const [form, setForm] = useState(
-    attendance ? { ...attendance } : { ...emptyForm }
-  );
+function AttendanceModal({ attendance, onClose, onSave, employees }) {
+  const [form, setForm] = useState(() => {
+    if (attendance) {
+      return {
+        ...attendance,
+        employeeId: attendance.employeeId?._id || attendance.employeeId || "",
+      };
+    }
+    return { ...emptyForm };
+  });
   const [error, setError] = useState("");
 
   const inputClass =
@@ -161,49 +166,36 @@ function AttendanceModal({ attendance, onClose, onSave }) {
         <form onSubmit={handleSubmit} className="space-y-4 p-6">
           <div>
             <label className="text-sm font-medium text-gray-700">
-              Employee name *
+              Employee *
+            </label>
+            <select
+              required
+              value={form.employeeId || ""}
+              onChange={(event) =>
+                updateField("employeeId", event.target.value)
+              }
+              className={inputClass}
+            >
+              <option value="">Select an employee</option>
+              {employees.map((emp) => (
+                <option key={emp._id} value={emp._id}>
+                  {emp.firstName} {emp.lastName} - {emp.employeeCode}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-gray-700">
+              Attendance date *
             </label>
             <input
               required
-              value={form.employee}
-              onChange={(event) =>
-                updateField("employee", event.target.value)
-              }
-              placeholder="Enter employee name"
+              type="date"
+              value={form.date}
+              onChange={(event) => updateField("date", event.target.value)}
               className={inputClass}
             />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="text-sm font-medium text-gray-700">
-                Department
-              </label>
-              <select
-                value={form.department}
-                onChange={(event) =>
-                  updateField("department", event.target.value)
-                }
-                className={inputClass}
-              >
-                {departments.map((department) => (
-                  <option key={department}>{department}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-gray-700">
-                Attendance date *
-              </label>
-              <input
-                required
-                type="date"
-                value={form.date}
-                onChange={(event) => updateField("date", event.target.value)}
-                className={inputClass}
-              />
-            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -405,6 +397,7 @@ function toDisplayTime(value) {
 
 export default function Attendance() {
   const [records, setRecords] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
@@ -425,9 +418,13 @@ export default function Attendance() {
       setLoading(true);
       setLoadError("");
       try {
-        const rows = await fetchAttendanceRecords();
+        const [rows, empList] = await Promise.all([
+          fetchAttendanceRecords(),
+          fetchEmployees(),
+        ]);
         if (!cancelled) {
           setRecords(rows.map(mapAttendanceRecord));
+          setEmployees(empList);
         }
       } catch (err) {
         if (!cancelled) {
@@ -504,50 +501,60 @@ export default function Attendance() {
   function openEditModal(record) {
     setEditingRecord({
       ...record,
+      employeeId: record.employeeId?._id || record.employeeId,
       checkIn: toTimeInput(record.checkIn),
       checkOut: toTimeInput(record.checkOut),
     });
     setShowModal(true);
   }
 
-  function saveAttendance(form) {
-    const employeeName = form.employee.trim();
+  async function saveAttendance(form) {
+    try {
+      const statusMap = {
+        "Present": "present",
+        "Absent": "absent",
+        "Late": "late",
+        "On Leave": "on_leave",
+      };
 
-    const duplicate = records.some(
-      (record) =>
-        record.id !== editingRecord?.id &&
-        record.employee.toLowerCase() === employeeName.toLowerCase() &&
-        record.date === form.date
-    );
+      const employee = employees.find((emp) => emp._id === form.employeeId);
+      if (!employee) {
+        alert("Please select a valid employee.");
+        return;
+      }
 
-    if (duplicate) {
-      window.alert("Attendance for this employee and date already exists.");
-      return;
-    }
+      const attendanceData = {
+        employeeId: form.employeeId,
+        date: form.date,
+        checkIn: form.checkIn ? `1970-01-01T${form.checkIn}:00Z` : null,
+        checkOut: form.checkOut ? `1970-01-01T${form.checkOut}:00Z` : null,
+        status: statusMap[form.status] || "present",
+        notes: form.notes,
+      };
 
-    const savedRecord = {
-      ...form,
-      id: editingRecord?.id ?? Date.now(),
-      employee: employeeName,
-      checkIn: toDisplayTime(form.checkIn),
-      checkOut: toDisplayTime(form.checkOut),
-    };
-
-    setRecords((previous) =>
-      editingRecord
-        ? previous.map((record) =>
-            record.id === editingRecord.id ? savedRecord : record
+      if (editingRecord) {
+        const updated = await updateAttendance(editingRecord.id, attendanceData);
+        setRecords((previous) =>
+          previous.map((record) =>
+            record.id === editingRecord.id ? mapAttendanceRecord(updated) : record
           )
-        : [savedRecord, ...previous]
-    );
+        );
+      } else {
+        const created = await createAttendance(attendanceData);
+        setRecords((previous) => [mapAttendanceRecord(created), ...previous]);
+      }
 
-    setSelectedDate(form.date);
-    setCurrentPage(1);
-    setSearch("");
-    setStatusFilter("All");
-    setDepartmentFilter("All");
-    setShowModal(false);
-    setEditingRecord(null);
+      setSelectedDate(form.date);
+      setCurrentPage(1);
+      setSearch("");
+      setStatusFilter("All");
+      setDepartmentFilter("All");
+      setShowModal(false);
+      setEditingRecord(null);
+    } catch (err) {
+      console.error("Failed to save attendance:", err);
+      alert(err.response?.data?.message || "Failed to save attendance record.");
+    }
   }
 
   function exportCSV() {
@@ -979,6 +986,7 @@ export default function Attendance() {
             setEditingRecord(null);
           }}
           onSave={saveAttendance}
+          employees={employees}
         />
       )}
 

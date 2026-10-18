@@ -174,7 +174,7 @@ export const createEmployee = asyncHandler(async (req, res) => {
   }
 
   await validateEmployeeReferences({
-    departmentId,
+    departmentId: departmentId || null,
     managerId,
     userId,
   });

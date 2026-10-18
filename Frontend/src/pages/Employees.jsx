@@ -1,6 +1,6 @@
 
 import { useEffect, useMemo, useState } from "react";
-import { fetchEmployees } from "../services/workforceApi.js";
+import { fetchEmployees, fetchDepartments, createEmployee, updateEmployee, deactivateEmployee } from "../services/workforceApi.js";
 import { mapEmployee } from "../utils/workforceMappers.js";
 import {
   Plus,
@@ -242,6 +242,7 @@ function EmployeeDetails({ employee, onClose, onEdit }) {
 
 function Employees() {
   const [employees, setEmployees] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
@@ -262,13 +263,18 @@ function Employees() {
       setLoading(true);
       setLoadError("");
       try {
-        const rows = await fetchEmployees();
+        const [rows, depts] = await Promise.all([
+          fetchEmployees(),
+          fetchDepartments(),
+        ]);
         if (!cancelled) {
           setEmployees(rows.map(mapEmployee));
+          setDepartments(depts);
         }
       } catch (err) {
         if (!cancelled) {
           setEmployees([]);
+          setDepartments([]);
           setLoadError(
             err.response?.data?.message || "Could not load employees from the server."
           );
@@ -316,35 +322,47 @@ function Employees() {
   const activeCount = employees.filter((employee) => employee.status === "Active").length;
   const inactiveCount = employees.filter((employee) => employee.status === "Inactive").length;
 
-  const saveEmployee = (form) => {
-    const duplicate = employees.some(
-      (employee) =>
-        employee.email.toLowerCase() === form.email.toLowerCase() &&
-        employee.id !== form.id
-    );
-
-    if (duplicate) {
-      setNotice("An employee with this email already exists.");
-      return;
+  const saveEmployee = async (form) => {
+    try {
+      if (form.id) {
+        const updated = await updateEmployee(form.id, {
+          firstName: form.name.split(" ")[0],
+          lastName: form.name.split(" ").slice(1).join(" ") || "",
+          workEmail: form.email,
+          designation: form.designation,
+          employmentStatus: form.status === "Active" ? "active" : form.status === "On Leave" ? "on_leave" : "resigned",
+          employmentType: form.type === "Full-time" ? "full_time" : form.type === "Part-time" ? "part_time" : form.type === "Contract" ? "contract" : "intern",
+          joiningDate: form.joined || undefined,
+        });
+        setEmployees((current) =>
+          current.map((employee) =>
+            employee.id === form.id ? mapEmployee(updated) : employee
+          )
+        );
+        setNotice("Employee updated successfully.");
+      } else {
+        // Use first available department or skip departmentId if backend allows it
+        const departmentId = departments.length > 0 ? departments[0]._id : undefined;
+        
+        const created = await createEmployee({
+          employeeCode: `EMP${Date.now()}`,
+          firstName: form.name.split(" ")[0],
+          lastName: form.name.split(" ").slice(1).join(" ") || "",
+          workEmail: form.email,
+          designation: form.designation,
+          departmentId,
+          employmentStatus: "active",
+          employmentType: form.type === "Full-time" ? "full_time" : form.type === "Part-time" ? "part_time" : form.type === "Contract" ? "contract" : "intern",
+          joiningDate: form.joined || new Date().toISOString().split("T")[0],
+        });
+        setEmployees((current) => [mapEmployee(created), ...current]);
+        setCurrentPage(1);
+        setNotice("Employee added successfully.");
+      }
+      setModalEmployee(null);
+    } catch (err) {
+      setNotice(err.response?.data?.message || "Failed to save employee.");
     }
-
-    if (form.id) {
-      setEmployees((current) =>
-        current.map((employee) =>
-          employee.id === form.id ? { ...employee, ...form } : employee
-        )
-      );
-      setNotice("Employee updated successfully.");
-    } else {
-      setEmployees((current) => [
-        { ...form, id: Date.now() },
-        ...current,
-      ]);
-      setCurrentPage(1);
-      setNotice("Employee added successfully.");
-    }
-
-    setModalEmployee(null);
   };
 
   const editEmployee = (employee) => {
@@ -353,17 +371,29 @@ function Employees() {
     setMenuEmployeeId(null);
   };
 
-  const toggleEmployeeStatus = (employee) => {
-    const nextStatus = employee.status === "Inactive" ? "Active" : "Inactive";
-
-    setEmployees((current) =>
-      current.map((item) =>
-        item.id === employee.id ? { ...item, status: nextStatus } : item
-      )
-    );
-
-    setMenuEmployeeId(null);
-    setNotice(`${employee.name} is now ${nextStatus.toLowerCase()}.`);
+  const toggleEmployeeStatus = async (employee) => {
+    try {
+      if (employee.status === "Active") {
+        await deactivateEmployee(employee.id);
+        setEmployees((current) =>
+          current.map((item) =>
+            item.id === employee.id ? { ...item, status: "Inactive" } : item
+          )
+        );
+        setNotice(`${employee.name} is now inactive.`);
+      } else {
+        await updateEmployee(employee.id, { employmentStatus: "active" });
+        setEmployees((current) =>
+          current.map((item) =>
+            item.id === employee.id ? { ...item, status: "Active" } : item
+          )
+        );
+        setNotice(`${employee.name} is now active.`);
+      }
+      setMenuEmployeeId(null);
+    } catch (err) {
+      setNotice(err.response?.data?.message || "Failed to update employee status.");
+    }
   };
 
   const updateSearch = (value) => {

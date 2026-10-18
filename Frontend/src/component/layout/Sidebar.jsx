@@ -13,7 +13,7 @@ import {
   X,
   LogOut,
 } from "lucide-react";
-import { useAuth } from "../../context/authContext.jsx";
+import { useAuth } from "../../context/authContext";
 
 const menuItems = [
   { name: "Dashboard", path: "/", icon: LayoutDashboard },
@@ -28,13 +28,18 @@ const menuItems = [
 
 function Sidebar({ isOpen, closeSidebar }) {
   const { logout } = useAuth();
+  // const navigate = useNavigate();
+
+  // const handleLogout = () => {
+  //   logout();
+  //   navigate("/login", { replace: true });
+  // };
+
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login", { replace: true });
-  };
-
+const handleLogout = () => {
+  navigate("/login");
+};
   return (
     <>
       {isOpen && (

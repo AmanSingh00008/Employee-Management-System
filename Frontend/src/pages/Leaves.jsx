@@ -1,6 +1,6 @@
 
 import { useEffect, useMemo, useState } from "react";
-import { fetchLeaveRequests } from "../services/workforceApi.js";
+import { fetchLeaveRequests, fetchLeaveTypes, createLeaveRequest, reviewLeaveRequest } from "../services/workforceApi.js";
 import { mapLeaveRequest } from "../utils/workforceMappers.js";
 import {
   Plus,
@@ -23,15 +23,11 @@ import {
 } from "lucide-react";
 
 const emptyForm = {
-  employee: "",
-  department: "Engineering",
   type: "Casual Leave",
   from: "",
   to: "",
   reason: "",
 };
-
-const leaveTypes = ["Casual Leave", "Sick Leave", "Earned Leave"];
 
 function formatDate(date) {
   if (!date) return "—";
@@ -98,7 +94,7 @@ function SummaryCard({ title, value, subtitle, icon: Icon, color }) {
   );
 }
 
-function LeaveModal({ onClose, onSave }) {
+function LeaveModal({ onClose, onSave, leaveTypes }) {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
 
@@ -157,59 +153,17 @@ function LeaveModal({ onClose, onSave }) {
         <form onSubmit={handleSubmit} className="space-y-4 p-6">
           <div>
             <label className="text-sm font-medium text-gray-700">
-              Employee name *
+              Leave type
             </label>
-            <input
-              required
-              value={form.employee}
-              onChange={(event) =>
-                updateField("employee", event.target.value)
-              }
-              placeholder="Enter employee name"
+            <select
+              value={form.type}
+              onChange={(event) => updateField("type", event.target.value)}
               className={inputClass}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="text-sm font-medium text-gray-700">
-                Department
-              </label>
-              <select
-                value={form.department}
-                onChange={(event) =>
-                  updateField("department", event.target.value)
-                }
-                className={inputClass}
-              >
-                {[
-                  "Engineering",
-                  "Marketing",
-                  "Sales",
-                  "Human Resources",
-                  "Finance",
-                  "Design",
-                  "Operations",
-                ].map((department) => (
-                  <option key={department}>{department}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-gray-700">
-                Leave type
-              </label>
-              <select
-                value={form.type}
-                onChange={(event) => updateField("type", event.target.value)}
-                className={inputClass}
-              >
-                {leaveTypes.map((type) => (
-                  <option key={type}>{type}</option>
-                ))}
-              </select>
-            </div>
+            >
+              {leaveTypes.map((type) => (
+                <option key={type}>{type}</option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -394,6 +348,7 @@ function LeaveDetails({ leave, onClose, onStatusChange }) {
 
 export default function Leaves() {
   const [leaves, setLeaves] = useState([]);
+  const [leaveTypes, setLeaveTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
@@ -412,9 +367,13 @@ export default function Leaves() {
       setLoading(true);
       setLoadError("");
       try {
-        const rows = await fetchLeaveRequests();
+        const [rows, types] = await Promise.all([
+          fetchLeaveRequests(),
+          fetchLeaveTypes(),
+        ]);
         if (!cancelled) {
           setLeaves(rows.map(mapLeaveRequest));
+          setLeaveTypes(types);
         }
       } catch (err) {
         if (!cancelled) {
@@ -471,43 +430,49 @@ export default function Leaves() {
     safePage * pageSize
   );
 
-  function updateStatus(id, status) {
-    setLeaves((previous) =>
-      previous.map((leave) =>
-        leave.id === id ? { ...leave, status } : leave
-      )
-    );
-
-    setSelectedLeave((previous) =>
-      previous?.id === id ? { ...previous, status } : previous
-    );
+  async function updateStatus(id, status) {
+    try {
+      const updated = await reviewLeaveRequest(id, {
+        status: status.toLowerCase(),
+      });
+      setLeaves((previous) =>
+        previous.map((leave) =>
+          leave.id === id ? mapLeaveRequest(updated) : leave
+        )
+      );
+      setSelectedLeave((previous) =>
+        previous?.id === id ? mapLeaveRequest(updated) : previous
+      );
+    } catch (err) {
+      console.error("Failed to update leave status:", err);
+    }
   }
 
-  function addLeave(form) {
-    const name = form.employee.trim();
-    const initials = name
-      .split(/\s+/)
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
+  async function addLeave(form) {
+    try {
+      const leaveType = leaveTypes.find((lt) => lt.name === form.type);
+      if (!leaveType) {
+        alert("Leave type not found. Please contact administrator.");
+        return;
+      }
 
-    const newLeave = {
-      id: Date.now(),
-      ...form,
-      employee: name,
-      initials,
-      days: getDays(form.from, form.to),
-      status: "Pending",
-      appliedOn: new Date().toLocaleDateString("en-CA"),
-    };
+      const created = await createLeaveRequest({
+        leaveTypeId: leaveType._id,
+        startDate: form.from,
+        endDate: form.to,
+        reason: form.reason,
+      });
 
-    setLeaves((previous) => [newLeave, ...previous]);
-    setCurrentPage(1);
-    setShowModal(false);
-    setSearch("");
-    setStatusFilter("All");
-    setTypeFilter("All");
+      setLeaves((previous) => [mapLeaveRequest(created), ...previous]);
+      setCurrentPage(1);
+      setShowModal(false);
+      setSearch("");
+      setStatusFilter("All");
+      setTypeFilter("All");
+    } catch (err) {
+      console.error("Failed to create leave request:", err);
+      alert(err.response?.data?.message || "Failed to create leave request.");
+    }
   }
 
   function changeFilter(setter, value) {
@@ -848,6 +813,7 @@ export default function Leaves() {
         <LeaveModal
           onClose={() => setShowModal(false)}
           onSave={addLeave}
+          leaveTypes={leaveTypes.map((lt) => lt.name)}
         />
       )}
 

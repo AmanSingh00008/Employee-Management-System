@@ -1,6 +1,6 @@
 
 import { useEffect, useMemo, useState } from "react";
-import { fetchAssets } from "../services/workforceApi.js";
+import { fetchAssets, createAsset, updateAsset } from "../services/workforceApi.js";
 import { mapAsset } from "../utils/workforceMappers.js";
 import {
   Plus,
@@ -559,42 +559,56 @@ export default function Assets() {
     setShowModal(true);
   }
 
-  function saveAsset(form) {
-    const duplicateTag = assets.some(
-      (asset) =>
-        asset.id !== editingAsset?.id &&
-        asset.assetTag.trim().toLowerCase() ===
-          form.assetTag.trim().toLowerCase()
-    );
+  async function saveAsset(form) {
+    try {
+      const categoryMap = {
+        "Laptop": "laptop",
+        "Monitor": "monitor",
+        "Keyboard": "keyboard",
+        "Headphones": "headphones",
+        "Mobile": "phone",
+        "Other": "other",
+      };
 
-    if (duplicateTag) {
-      window.alert("This asset tag already exists. Please use a unique tag.");
-      return;
-    }
+      const statusMap = {
+        "Available": "available",
+        "Assigned": "assigned",
+        "Maintenance": "maintenance",
+        "Retired": "retired",
+      };
 
-    const savedAsset = {
-      ...form,
-      id: editingAsset?.id ?? Date.now(),
-      name: form.name.trim(),
-      assetTag: form.assetTag.trim(),
-      serialNumber: form.serialNumber.trim(),
-      assignedTo: form.assignedTo.trim(),
-    };
+      const assetData = {
+        name: form.name.trim(),
+        category: categoryMap[form.category] || "other",
+        assetCode: form.assetTag.trim(),
+        serialNumber: form.serialNumber.trim() || undefined,
+        status: statusMap[form.status] || "available",
+        purchaseDate: form.purchaseDate || undefined,
+        notes: form.notes || undefined,
+      };
 
-    setAssets((previous) =>
-      editingAsset
-        ? previous.map((asset) =>
-            asset.id === editingAsset.id ? savedAsset : asset
+      if (editingAsset) {
+        const updated = await updateAsset(editingAsset.id, assetData);
+        setAssets((previous) =>
+          previous.map((asset) =>
+            asset.id === editingAsset.id ? mapAsset(updated) : asset
           )
-        : [savedAsset, ...previous]
-    );
+        );
+      } else {
+        const created = await createAsset(assetData);
+        setAssets((previous) => [mapAsset(created), ...previous]);
+      }
 
-    setCurrentPage(1);
-    setSearch("");
-    setStatusFilter("All");
-    setCategoryFilter("All");
-    setShowModal(false);
-    setEditingAsset(null);
+      setCurrentPage(1);
+      setSearch("");
+      setStatusFilter("All");
+      setCategoryFilter("All");
+      setShowModal(false);
+      setEditingAsset(null);
+    } catch (err) {
+      console.error("Failed to save asset:", err);
+      alert(err.response?.data?.message || "Failed to save asset.");
+    }
   }
 
   function exportCSV() {

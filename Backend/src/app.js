@@ -40,9 +40,21 @@ app.use(helmet());
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || env.CORS_ORIGINS.includes(origin)) {
-        return callback(null, true);
+      // Allow requests with no origin (e.g., server-to-server, curl)
+      if (!origin) return callback(null, true);
+
+      // Allow explicit origins from env
+      if (env.CORS_ORIGINS.includes(origin)) return callback(null, true);
+
+      // Allow any localhost / 127.0.0.1 with any port for local development
+      try {
+        const url = new URL(origin);
+        const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+        if (isLocalhost) return callback(null, true);
+      } catch (e) {
+        // If origin is not a valid URL, fallthrough to reject
       }
+
       return callback(new ApiError(403, "Origin not allowed by CORS"));
     },
     credentials: true,
