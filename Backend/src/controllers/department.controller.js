@@ -278,6 +278,8 @@ export const deactivateDepartment = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Department not found");
   }
 
+
+  
   if (!department.isActive) {
     throw new ApiError(409, "Department is already inactive");
   }
