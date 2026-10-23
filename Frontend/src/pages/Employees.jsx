@@ -1,5 +1,7 @@
 
 import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/authContext.jsx";
 import { fetchEmployees, fetchDepartments, createEmployee, updateEmployee, deactivateEmployee } from "../services/workforceApi.js";
 import { mapEmployee } from "../utils/workforceMappers.js";
 import {
@@ -54,9 +56,10 @@ function StatusBadge({ status }) {
 }
 
 function EmployeeModal({ employee, onClose, onSave, departments }) {
+  const activeDepartments = departments.filter((department) => department.isActive);
   const [form, setForm] = useState(() => employee || {
     ...emptyForm,
-    department: departments.find((department) => department.isActive)?._id || "",
+    department: activeDepartments[0]?._id || "",
   });
   const [error, setError] = useState("");
 
@@ -69,6 +72,11 @@ function EmployeeModal({ employee, onClose, onSave, departments }) {
 
     if (!form.name.trim() || !form.email.trim() || !form.designation.trim()) {
       setError("Please fill in the name, email and designation.");
+      return;
+    }
+
+    if (!form.department) {
+      setError("Please select a department. Create one first if none are available.");
       return;
     }
 
@@ -121,13 +129,22 @@ function EmployeeModal({ employee, onClose, onSave, departments }) {
             </label>
 
             <label className="text-sm font-medium text-slate-700">
-              Department
+              Department *
               <select required name="department" value={form.department} onChange={updateField} className={inputClass}>
                 <option value="">Select a department</option>
-                {departments.filter((department) => department.isActive).map((department) => (
+                {activeDepartments.map((department) => (
                   <option key={department._id} value={department._id}>{department.name}</option>
                 ))}
               </select>
+              {activeDepartments.length === 0 && (
+                <span className="mt-2 block text-xs font-normal text-amber-700">
+                  No active departments are available.{" "}
+                  <Link to="/departments" className="font-semibold text-indigo-600 underline underline-offset-2">
+                    Create a department
+                  </Link>
+                  {" "}then reopen this form.
+                </span>
+              )}
             </label>
 
             <label className="text-sm font-medium text-slate-700">
@@ -180,7 +197,7 @@ function EmployeeModal({ employee, onClose, onSave, departments }) {
   );
 }
 
-function EmployeeDetails({ employee, onClose, onEdit }) {
+function EmployeeDetails({ employee, onClose, onEdit, canManageEmployees }) {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/40 p-4" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
@@ -226,9 +243,11 @@ function EmployeeDetails({ employee, onClose, onEdit }) {
             </div>
           </div>
 
-          <button type="button" onClick={() => onEdit(employee)} className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white hover:bg-indigo-700">
-            <Pencil size={16} /> Edit Employee
-          </button>
+          {canManageEmployees && (
+            <button type="button" onClick={() => onEdit(employee)} className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white hover:bg-indigo-700">
+              <Pencil size={16} /> Edit Employee
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -236,20 +255,40 @@ function EmployeeDetails({ employee, onClose, onEdit }) {
 }
 
 function Employees() {
+  const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const canManageEmployees = ["super_admin", "hr_admin"].includes(user?.role);
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [departmentLoadError, setDepartmentLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("All Departments");
   const [statusFilter, setStatusFilter] = useState("All Statuses");
   const [currentPage, setCurrentPage] = useState(1);
-  const [modalEmployee, setModalEmployee] = useState(null);
+  const [modalEmployee, setModalEmployee] = useState(() => {
+    const departmentId = location.state?.addEmployeeDepartmentId;
+    return departmentId && canManageEmployees
+      ? { ...emptyForm, department: departmentId }
+      : null;
+  });
   const [viewEmployee, setViewEmployee] = useState(null);
   const [menuEmployeeId, setMenuEmployeeId] = useState(null);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState(() =>
+    location.state?.addEmployeeDepartmentId && !canManageEmployees
+      ? "Only HR/Admin users can add employees."
+      : ""
+  );
 
   const pageSize = 6;
+
+  useEffect(() => {
+    if (location.state?.addEmployeeDepartmentId) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate]);
 
   useEffect(() => {
     let cancelled = false;
@@ -257,22 +296,32 @@ function Employees() {
     (async () => {
       setLoading(true);
       setLoadError("");
+      setDepartmentLoadError("");
       try {
-        const [rows, depts] = await Promise.all([
+        const [employeeResult, departmentResult] = await Promise.allSettled([
           fetchEmployees(),
           fetchDepartments(),
         ]);
         if (!cancelled) {
-          setEmployees(rows.map(mapEmployee));
-          setDepartments(depts);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setEmployees([]);
-          setDepartments([]);
-          setLoadError(
-            err.response?.data?.message || "Could not load employees from the server."
-          );
+          if (employeeResult.status === "fulfilled") {
+            setEmployees(employeeResult.value.map(mapEmployee));
+          } else {
+            setEmployees([]);
+            setLoadError(
+              employeeResult.reason.response?.data?.message ||
+                "Could not load employees from the server."
+            );
+          }
+
+          if (departmentResult.status === "fulfilled") {
+            setDepartments(departmentResult.value);
+          } else {
+            setDepartments([]);
+            setDepartmentLoadError(
+              departmentResult.reason.response?.data?.message ||
+                "Could not load departments from the server."
+            );
+          }
         }
       } finally {
         if (!cancelled) {
@@ -423,7 +472,7 @@ function Employees() {
           setModalEmployee(null);
         }} className="hidden" aria-hidden="true" />
 
-        <button type="button" onClick={(event) => {
+        {canManageEmployees && <button type="button" onClick={(event) => {
           event.stopPropagation();
           setNotice("");
           setModalEmployee({
@@ -432,12 +481,24 @@ function Employees() {
           });
         }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700">
           <Plus size={18} /> Add Employee
-        </button>
+        </button>}
       </section>
+
+      {!canManageEmployees && (
+        <div role="status" className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          You can view employee records, but only HR/Admin users can add, edit, or deactivate employees.
+        </div>
+      )}
 
       {loadError && (
         <div role="alert" className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-800">
           {loadError}
+        </div>
+      )}
+
+      {departmentLoadError && (
+        <div role="alert" className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+          {departmentLoadError}
         </div>
       )}
 
@@ -561,12 +622,16 @@ function Employees() {
                           }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
                             <Eye size={16} /> View profile
                           </button>
-                          <button type="button" onClick={() => editEmployee(employee)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
-                            <Pencil size={16} /> Edit employee
-                          </button>
-                          <button type="button" onClick={() => toggleEmployeeStatus(employee)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-600 hover:bg-rose-50">
-                            <UserX size={16} /> {employee.status === "Inactive" ? "Reactivate" : "Deactivate"}
-                          </button>
+                          {canManageEmployees && (
+                            <>
+                              <button type="button" onClick={() => editEmployee(employee)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                                <Pencil size={16} /> Edit employee
+                              </button>
+                              <button type="button" onClick={() => toggleEmployeeStatus(employee)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-600 hover:bg-rose-50">
+                                <UserX size={16} /> {employee.status === "Inactive" ? "Reactivate" : "Deactivate"}
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
@@ -621,6 +686,7 @@ function Employees() {
           employee={viewEmployee}
           onClose={() => setViewEmployee(null)}
           onEdit={editEmployee}
+          canManageEmployees={canManageEmployees}
         />
       )}
     </div>

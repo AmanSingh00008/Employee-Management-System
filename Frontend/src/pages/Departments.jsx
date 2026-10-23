@@ -1,5 +1,6 @@
 
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   createDepartment,
   deactivateDepartment,
@@ -253,7 +254,7 @@ function DepartmentModal({ department, onClose, onSave, departments, employees }
   );
 }
 
-function DepartmentDetails({ department, onClose, onEdit }) {
+function DepartmentDetails({ department, onClose, onEdit, canManageDepartments }) {
   const index = [...department.name].reduce(
     (sum, character) => sum + character.charCodeAt(0),
     0
@@ -322,13 +323,15 @@ function DepartmentDetails({ department, onClose, onEdit }) {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => onEdit(department)}
-            className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
-          >
-            <Pencil size={16} /> Edit Department
-          </button>
+          {canManageDepartments && (
+            <button
+              type="button"
+              onClick={() => onEdit(department)}
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
+            >
+              <Pencil size={16} /> Edit Department
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -337,6 +340,7 @@ function DepartmentDetails({ department, onClose, onEdit }) {
 
 function Departments() {
   const { user } = useAuth();
+  const canManageDepartments = ["super_admin", "hr_admin"].includes(user?.role);
   const [departments, setDepartments] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -490,7 +494,7 @@ function Departments() {
           </p>
         </div>
 
-        <button
+        {canManageDepartments && <button
           type="button"
           onClick={(event) => {
             event.stopPropagation();
@@ -500,8 +504,14 @@ function Departments() {
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700"
         >
           <Plus size={18} /> Add Department
-        </button>
+        </button>}
       </section>
+
+      {!canManageDepartments && (
+        <div role="status" className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          You can view departments, but only HR/Admin users can add, edit, or deactivate them.
+        </div>
+      )}
 
       {notice && (
         <div
@@ -623,14 +633,16 @@ function Departments() {
                       >
                         <Building2 size={16} /> View details
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => editDepartment(department)}
-                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
-                      >
-                        <Pencil size={16} /> Edit department
-                      </button>
-                      {department.status === "Active" && (
+                      {canManageDepartments && (
+                        <button
+                          type="button"
+                          onClick={() => editDepartment(department)}
+                          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                        >
+                          <Pencil size={16} /> Edit department
+                        </button>
+                      )}
+                      {canManageDepartments && department.status === "Active" && (
                         <button
                           type="button"
                           onClick={() => toggleDepartmentStatus(department)}
@@ -688,13 +700,25 @@ function Departments() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setViewDepartment(department)}
-                className="mt-4 w-full rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
-              >
-                View department
-              </button>
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setViewDepartment(department)}
+                  className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+                >
+                  View department
+                </button>
+                {canManageDepartments && department.status === "Active" && (
+                  <Link
+                    to="/employees"
+                    state={{ addEmployeeDepartmentId: department.id }}
+                    onClick={(event) => event.stopPropagation()}
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                  >
+                    <Plus size={16} /> Add employee
+                  </Link>
+                )}
+              </div>
             </article>
           );
         })}
@@ -784,6 +808,7 @@ function Departments() {
           department={viewDepartment}
           onClose={() => setViewDepartment(null)}
           onEdit={editDepartment}
+          canManageDepartments={canManageDepartments}
         />
       )}
     </div>

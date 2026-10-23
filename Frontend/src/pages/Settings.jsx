@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bell,
   Building2,
@@ -50,7 +50,13 @@ const navigation = [
 
 function Settings() {
   const [activeTab, setActiveTab] = useState("profile");
-  const [settings, setSettings] = useState(initialSettings);
+  const [settings, setSettings] = useState(() => ({
+    ...initialSettings,
+    appearance: {
+      ...initialSettings.appearance,
+      theme: localStorage.getItem("workforcehub-theme") || "light",
+    },
+  }));
   const [savedMessage, setSavedMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [passwords, setPasswords] = useState({
@@ -58,6 +64,13 @@ function Settings() {
     next: "",
     confirm: "",
   });
+
+  useEffect(() => {
+    const isDark = settings.appearance.theme === "dark";
+    document.documentElement.classList.toggle("dark", isDark);
+    document.documentElement.style.colorScheme = isDark ? "dark" : "light";
+    localStorage.setItem("workforcehub-theme", settings.appearance.theme);
+  }, [settings.appearance.theme]);
 
   const updateField = (section, field, value) => {
     setSettings((previous) => ({
@@ -436,8 +449,7 @@ function Settings() {
                       ))}
                     </div>
                     <p className="mt-3 text-xs text-slate-400">
-                      Theme selection is stored in frontend state only. Actual
-                      dark mode styling can be implemented separately.
+                      Your appearance preference is applied immediately and saved on this device.
                     </p>
                   </div>
 

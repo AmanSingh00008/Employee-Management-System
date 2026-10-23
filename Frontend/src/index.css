@@ -5,11 +5,139 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background-color: #0b0f19;
-  color: #f3f4f6;
+  background-color: #fff;
+  color: #0f172a;
   font-family: ui-sans-serif, system-ui, sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   overflow-x: hidden;
   height: 100%;
+}
+
+html.dark,
+html.dark body {
+  background-color: #0b0f19;
+  color: #f3f4f6;
+}
+
+html.dark .bg-white {
+  background-color: #111827;
+}
+
+html.dark :is(.bg-slate-50, .bg-slate-50\/70) {
+  background-color: #0b1220;
+}
+
+html.dark .bg-slate-100 {
+  background-color: #1f2937;
+}
+
+html.dark :is(.text-slate-900, .text-slate-800, .text-slate-700) {
+  color: #e5e7eb;
+}
+
+html.dark :is(.text-slate-600, .text-slate-500) {
+  color: #aeb9c9;
+}
+
+html.dark .text-slate-400 {
+  color: #8290a3;
+}
+
+html.dark :is(.text-gray-500, .text-gray-600) {
+  color: #aeb9c9;
+}
+
+html.dark :is(.text-gray-700, .text-gray-800, .text-gray-900) {
+  color: #e5e7eb;
+}
+
+html.dark :is(
+  .text-blue-600,
+  .text-blue-700,
+  .text-indigo-600,
+  .text-indigo-700,
+  .text-indigo-800,
+  .text-indigo-900,
+  .text-sky-600,
+  .text-sky-700
+) {
+  color: #a5c8ff;
+}
+
+html.dark :is(
+  .text-amber-600,
+  .text-amber-700,
+  .text-amber-800,
+  .text-amber-900,
+  .text-orange-600
+) {
+  color: #fcd37a;
+}
+
+html.dark :is(.text-emerald-600, .text-emerald-700) {
+  color: #6ee7b7;
+}
+
+html.dark :is(
+  .text-pink-600,
+  .text-pink-700,
+  .text-rose-600,
+  .text-rose-700,
+  .text-rose-800
+) {
+  color: #fda4af;
+}
+
+html.dark :is(.text-purple-600, .text-violet-600, .text-violet-700) {
+  color: #c4b5fd;
+}
+
+html.dark :is(.border-slate-100, .border-slate-200) {
+  border-color: #293548;
+}
+
+html.dark :is(
+  .bg-gray-50,
+  .bg-gray-100,
+  .bg-indigo-50,
+  .bg-indigo-100,
+  .bg-blue-50,
+  .bg-blue-100,
+  .bg-sky-50,
+  .bg-sky-100,
+  .bg-emerald-50,
+  .bg-emerald-100,
+  .bg-amber-50,
+  .bg-amber-100,
+  .bg-orange-50,
+  .bg-orange-100,
+  .bg-pink-50,
+  .bg-pink-100,
+  .bg-rose-50,
+  .bg-rose-100,
+  .bg-violet-50,
+  .bg-violet-100,
+  .bg-purple-50,
+  .bg-purple-100
+) {
+  background-color: #1f2937;
+}
+
+html.dark :is(input, select, textarea) {
+  background-color: #111827;
+  color: #e5e7eb;
+}
+
+html.dark :is(input, select, textarea)::placeholder {
+  color: #8290a3;
+}
+
+html.dark option {
+  background-color: #111827;
+  color: #e5e7eb;
+}
+
+html.dark :is(.hover\:bg-slate-50:hover, .hover\:bg-slate-100:hover) {
+  background-color: #1f2937;
 }
 
 ::placeholder {

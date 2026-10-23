@@ -94,10 +94,15 @@ export async function register(req, res) {
 
 export async function login(req, res) {
   try {
-    const { email, password } = req.body;
+    const { email, password, loginAs } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ message: "email and password are required" });
+    }
+
+    const allowedLoginRoles = ["employee", "manager", "admin"];
+    if (loginAs && !allowedLoginRoles.includes(loginAs)) {
+      return res.status(400).json({ message: "Invalid login role" });
     }
 
     const user = await User.findOne({ email: email.toLowerCase().trim() }).select("+passwordHash");
@@ -112,6 +117,16 @@ export async function login(req, res) {
 
     if (user.status !== "active") {
       return res.status(403).json({ message: "Your account is not active" });
+    }
+
+    const roleMatches = !loginAs ||
+      (loginAs === "admin" && ["super_admin", "hr_admin"].includes(user.role)) ||
+      user.role === loginAs;
+
+    if (!roleMatches) {
+      return res.status(403).json({
+        message: `This account does not have the ${loginAs} role`,
+      });
     }
 
     const refreshToken = signRefreshToken(user._id);

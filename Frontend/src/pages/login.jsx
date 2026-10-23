@@ -16,7 +16,11 @@ function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+    loginAs: "employee",
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -25,6 +29,8 @@ function Login() {
 
   const inputClass =
     "w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-900 caret-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
+  const roleSelectClass =
+    "w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -112,6 +118,24 @@ function Login() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Sign in as
+              </label>
+              <select
+                required
+                value={form.loginAs}
+                onChange={(event) =>
+                  setForm({ ...form, loginAs: event.target.value })
+                }
+                className={roleSelectClass}
+              >
+                <option value="employee">Employee</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin / HR</option>
+              </select>
+            </div>
+
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-700">
                 Email address
