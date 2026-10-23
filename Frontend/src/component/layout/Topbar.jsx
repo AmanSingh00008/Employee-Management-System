@@ -1,7 +1,17 @@
 
 import { Bell, Menu, Search } from "lucide-react";
+import { useAuth } from "../../context/authContext.jsx";
 
 function Topbar({ openSidebar }) {
+  const { user } = useAuth();
+  const initials = user?.name
+    ?.split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
   return (
     <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8">
       <div className="flex items-center gap-3">
@@ -49,11 +59,11 @@ function Topbar({ openSidebar }) {
 
         <div className="flex items-center gap-3 border-l border-slate-200 pl-3 sm:pl-5">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700">
-            AD
+            {initials || "U"}
           </div>
           <div className="hidden sm:block">
-            <p className="text-sm font-semibold text-slate-800">Admin User</p>
-            <p className="text-xs text-slate-500">HR Administrator</p>
+            <p className="text-sm font-semibold text-slate-800">{user?.name || "User"}</p>
+            <p className="text-xs capitalize text-slate-500">{user?.role?.replaceAll("_", " ") || "Employee"}</p>
           </div>
         </div>
       </div>

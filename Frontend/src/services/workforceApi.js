@@ -17,6 +17,26 @@ export async function fetchDepartments(params = {}) {
   return data.data ?? [];
 }
 
+export async function fetchDashboardSummary() {
+  const { data } = await api.get("/api/v1/dashboard/summary");
+  return data.data;
+}
+
+export async function createDepartment(departmentData) {
+  const { data } = await api.post("/api/v1/departments", departmentData);
+  return data.data;
+}
+
+export async function updateDepartment(id, departmentData) {
+  const { data } = await api.patch(`/api/v1/departments/${id}`, departmentData);
+  return data.data;
+}
+
+export async function deactivateDepartment(id) {
+  const { data } = await api.patch(`/api/v1/departments/${id}/deactivate`);
+  return data;
+}
+
 export async function createEmployee(employeeData) {
   const { data } = await api.post("/api/v1/employees", employeeData);
   return data.data;

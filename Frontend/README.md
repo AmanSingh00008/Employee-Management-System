@@ -1,16 +1,21 @@
-# React + Vite
+# WorkforceHub frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The React application talks to the Express API. By default, API requests go to
+`http://localhost:4000`; set `VITE_API_BASE_URL` in a frontend `.env` file to
+override that URL.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+1. Configure the backend environment variables documented by `Backend/src/config/env.js`
+   and make sure MongoDB is available.
+2. In one terminal, run `npm run dev:backend` from the repository root.
+3. In another terminal, run `npm run dev` from the repository root.
+4. Open the Vite URL shown in the frontend terminal and sign in or create an
+   account.
 
-## React Compiler
+The backend enables credentialed CORS for localhost development origins. The
+frontend sends the access token as a bearer token and relies on the backend's
+HTTP-only refresh-token cookie to restore sessions.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Use `npm run build` and `npm run lint` from the repository root to validate the
+frontend.

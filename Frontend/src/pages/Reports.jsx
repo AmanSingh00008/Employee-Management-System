@@ -4,12 +4,6 @@ import { Users, CalendarDays, FileBarChart, FileBarChart as FileBar } from "luci
 import { Pie, PieChart, ResponsiveContainer, Tooltip, Cell, LineChart, Line, CartesianGrid, XAxis, YAxis, Legend } from "recharts";
 import { fetchEmployees, fetchLeaveRequests, fetchAttendanceRecords, fetchAssets } from "../services/workforceApi.js";
 
-const defaultMonthly = [
-  { month: "Jan", present: 92, absent: 5, late: 3 },
-  { month: "Feb", present: 94, absent: 3, late: 3 },
-  { month: "Mar", present: 91, absent: 6, late: 3 },
-];
-
 function StatCard({ title, value, subtitle }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -27,8 +21,12 @@ export default function Reports() {
   const [leaves, setLeaves] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [assets, setAssets] = useState([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       try {
         const [emps, lvs, atd, asts] = await Promise.all([
@@ -37,14 +35,27 @@ export default function Reports() {
           fetchAttendanceRecords(),
           fetchAssets(),
         ]);
-        setEmployees(emps || []);
-        setLeaves(lvs || []);
-        setAttendance(atd || []);
-        setAssets(asts || []);
-      } catch (e) {
-        // ignore — keep defaults
+        if (!cancelled) {
+          setEmployees(emps);
+          setLeaves(lvs);
+          setAttendance(atd);
+          setAssets(asts);
+        }
+      } catch (requestError) {
+        if (!cancelled) {
+          setError(
+            requestError.response?.data?.message ||
+              "Could not load report data from the server."
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const totalEmployees = employees.length;
@@ -72,7 +83,37 @@ export default function Reports() {
     ];
   }, [assets]);
 
-  const monthly = defaultMonthly;
+  const monthly = useMemo(() => {
+    const byMonth = new Map();
+
+    attendance.forEach((record) => {
+      const date = new Date(record.date);
+      if (Number.isNaN(date.getTime())) return;
+
+      const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+      if (!byMonth.has(key)) {
+        byMonth.set(key, {
+          month: date.toLocaleDateString("en", {
+            month: "short",
+            timeZone: "UTC",
+          }),
+          present: 0,
+          absent: 0,
+          late: 0,
+        });
+      }
+
+      const month = byMonth.get(key);
+      if (record.status === "present") month.present += 1;
+      if (record.status === "absent") month.absent += 1;
+      if (record.status === "late") month.late += 1;
+    });
+
+    return [...byMonth.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .slice(-6)
+      .map(([, data]) => data);
+  }, [attendance]);
 
   return (
     <div className="min-h-screen space-y-6 bg-slate-50 p-4 sm:p-6 lg:p-8">
@@ -85,6 +126,15 @@ export default function Reports() {
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Reports & Analytics</h1>
         </div>
       </div>
+
+      {error && (
+        <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {error}
+        </p>
+      )}
+      {loading && (
+        <p role="status" className="text-sm text-slate-500">Loading report data…</p>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard title="Total Employees" value={totalEmployees} subtitle="Employees in the org" />

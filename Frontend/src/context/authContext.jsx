@@ -8,6 +8,7 @@ import {
 import api, { clearAccessToken, setAccessToken } from "../utils/axios.js";
 
 const AuthContext = createContext(null);
+let sessionRestorePromise;
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -16,23 +17,36 @@ export function AuthProvider({ children }) {
 
   // On mount: try to restore session using the httpOnly refreshToken cookie.
   useEffect(() => {
-    (async () => {
-      try {
-        // Ask the server for a new access token using the cookie
-        const { data } = await api.get("/api/auth/refresh-token");
-        setAccessToken(data.accessToken);
+    let cancelled = false;
 
-        // Fetch user profile with the fresh access token
-        const meRes = await api.get("/api/auth/get-me");
-        setUser(meRes.data.user);
+    async function restoreSession() {
+      try {
+        if (!sessionRestorePromise) {
+          sessionRestorePromise = (async () => {
+            const { data } = await api.get("/api/auth/refresh-token");
+            setAccessToken(data.accessToken);
+            const meRes = await api.get("/api/auth/get-me");
+            return meRes.data.user;
+          })().finally(() => {
+            sessionRestorePromise = null;
+          });
+        }
+        const restoredUser = await sessionRestorePromise;
+        if (!cancelled) setUser(restoredUser);
       } catch {
-        // No valid session — stay logged out
-        clearAccessToken();
-        setUser(null);
+        if (!cancelled) {
+          clearAccessToken();
+          setUser(null);
+        }
       } finally {
-        setInitializing(false);
+        if (!cancelled) setInitializing(false);
       }
-    })();
+    }
+
+    restoreSession();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // ─── Register ─────────────────────────────────────────────────────────────

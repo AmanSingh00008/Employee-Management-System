@@ -20,19 +20,10 @@ import {
   CalendarDays,
 } from "lucide-react";
 
-const departments = [
-  "Engineering",
-  "Marketing",
-  "Human Resources",
-  "Sales",
-  "Finance",
-  "Design",
-];
-
 const emptyForm = {
   name: "",
   email: "",
-  department: "Engineering",
+  department: "",
   designation: "",
   status: "Active",
   joined: "",
@@ -62,8 +53,11 @@ function StatusBadge({ status }) {
   );
 }
 
-function EmployeeModal({ employee, onClose, onSave }) {
-  const [form, setForm] = useState(employee || emptyForm);
+function EmployeeModal({ employee, onClose, onSave, departments }) {
+  const [form, setForm] = useState(() => employee || {
+    ...emptyForm,
+    department: departments.find((department) => department.isActive)?._id || "",
+  });
   const [error, setError] = useState("");
 
   const updateField = (event) => {
@@ -128,9 +122,10 @@ function EmployeeModal({ employee, onClose, onSave }) {
 
             <label className="text-sm font-medium text-slate-700">
               Department
-              <select name="department" value={form.department} onChange={updateField} className={inputClass}>
-                {departments.map((department) => (
-                  <option key={department}>{department}</option>
+              <select required name="department" value={form.department} onChange={updateField} className={inputClass}>
+                <option value="">Select a department</option>
+                {departments.filter((department) => department.isActive).map((department) => (
+                  <option key={department._id} value={department._id}>{department.name}</option>
                 ))}
               </select>
             </label>
@@ -330,6 +325,7 @@ function Employees() {
           lastName: form.name.split(" ").slice(1).join(" ") || "",
           workEmail: form.email,
           designation: form.designation,
+          departmentId: form.department,
           employmentStatus: form.status === "Active" ? "active" : form.status === "On Leave" ? "on_leave" : "resigned",
           employmentType: form.type === "Full-time" ? "full_time" : form.type === "Part-time" ? "part_time" : form.type === "Contract" ? "contract" : "intern",
           joiningDate: form.joined || undefined,
@@ -341,16 +337,13 @@ function Employees() {
         );
         setNotice("Employee updated successfully.");
       } else {
-        // Use first available department or skip departmentId if backend allows it
-        const departmentId = departments.length > 0 ? departments[0]._id : undefined;
-        
         const created = await createEmployee({
           employeeCode: `EMP${Date.now()}`,
           firstName: form.name.split(" ")[0],
           lastName: form.name.split(" ").slice(1).join(" ") || "",
           workEmail: form.email,
           designation: form.designation,
-          departmentId,
+          departmentId: form.department,
           employmentStatus: "active",
           employmentType: form.type === "Full-time" ? "full_time" : form.type === "Part-time" ? "part_time" : form.type === "Contract" ? "contract" : "intern",
           joiningDate: form.joined || new Date().toISOString().split("T")[0],
@@ -367,7 +360,7 @@ function Employees() {
 
   const editEmployee = (employee) => {
     setViewEmployee(null);
-    setModalEmployee(employee);
+    setModalEmployee({ ...employee, department: employee.departmentId });
     setMenuEmployeeId(null);
   };
 
@@ -433,7 +426,10 @@ function Employees() {
         <button type="button" onClick={(event) => {
           event.stopPropagation();
           setNotice("");
-          setModalEmployee({ ...emptyForm });
+          setModalEmployee({
+            ...emptyForm,
+            department: departments.find((department) => department.isActive)?._id || "",
+          });
         }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700">
           <Plus size={18} /> Add Employee
         </button>
@@ -505,7 +501,7 @@ function Employees() {
 
             <select value={departmentFilter} onChange={(event) => updateDepartment(event.target.value)} className={selectClass}>
               <option>All Departments</option>
-              {departments.map((department) => <option key={department}>{department}</option>)}
+              {departments.map((department) => <option key={department._id}>{department.name}</option>)}
             </select>
 
             <select value={statusFilter} onChange={(event) => updateStatus(event.target.value)} className={selectClass}>
@@ -614,6 +610,7 @@ function Employees() {
         <EmployeeModal
           key={modalEmployee.id || "new"}
           employee={modalEmployee}
+          departments={departments}
           onClose={() => setModalEmployee(null)}
           onSave={saveEmployee}
         />
