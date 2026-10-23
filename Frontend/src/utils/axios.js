@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-    baseURL: "http://localhost:4000",
+    baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:4000",
     withCredentials: true, // send/receive httpOnly cookies (refreshToken)
     headers: {
         "Content-Type": "application/json",
@@ -49,8 +49,14 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
-        // Only attempt refresh on 401and only once per request
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        const isAuthRequest = originalRequest?.url?.startsWith("/api/auth/");
+
+        if (
+            error.response?.status === 401 &&
+            originalRequest &&
+            !originalRequest._retry &&
+            !isAuthRequest
+        ) {
             if (isRefreshing) {
                 // Queue the request while a refresh is in progress
                 return new Promise((resolve, reject) => {

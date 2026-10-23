@@ -78,6 +78,7 @@ export function mapEmployee(record) {
     name,
     email: record.workEmail || record.userId?.email || "",
     department: record.departmentId?.name || "—",
+    departmentId: record.departmentId?._id || record.departmentId || "",
     designation: record.designation || "",
     status: EMPLOYMENT_STATUS[record.employmentStatus] || "Active",
     joined: formatDate(record.joiningDate),

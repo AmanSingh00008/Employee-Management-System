@@ -1,5 +1,13 @@
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  createDepartment,
+  deactivateDepartment,
+  fetchDepartments,
+  fetchEmployees,
+  updateDepartment,
+} from "../services/workforceApi.js";
+import { useAuth } from "../context/authContext.jsx";
 import {
   Plus,
   Search,
@@ -21,97 +29,35 @@ import {
   Check,
 } from "lucide-react";
 
-const initialDepartments = [
-  {
-    id: 1,
-    name: "Engineering",
-    code: "ENG",
-    description: "Software development, infrastructure and engineering.",
-    head: "Aarav Sharma",
-    headEmail: "aarav@workforcehub.com",
-    employeeCount: 82,
-    status: "Active",
-  },
-  {
-    id: 2,
-    name: "Marketing",
-    code: "MKT",
-    description: "Brand strategy, campaigns and marketing operations.",
-    head: "Priya Patel",
-    headEmail: "priya@workforcehub.com",
-    employeeCount: 38,
-    status: "Active",
-  },
-  {
-    id: 3,
-    name: "Sales",
-    code: "SAL",
-    description: "Customer acquisition, sales and business development.",
-    head: "Ishaan Gupta",
-    headEmail: "ishaan@workforcehub.com",
-    employeeCount: 54,
-    status: "Active",
-  },
-  {
-    id: 4,
-    name: "Human Resources",
-    code: "HR",
-    description: "Employee relations, hiring and people operations.",
-    head: "Ananya Singh",
-    headEmail: "ananya@workforcehub.com",
-    employeeCount: 16,
-    status: "Active",
-  },
-  {
-    id: 5,
-    name: "Finance",
-    code: "FIN",
-    description: "Financial planning, accounting and reporting.",
-    head: "Meera Joshi",
-    headEmail: "meera@workforcehub.com",
-    employeeCount: 29,
-    status: "Active",
-  },
-  {
-    id: 6,
-    name: "Design",
-    code: "DSN",
-    description: "Product design, user experience and visual design.",
-    head: "Riya Kapoor",
-    headEmail: "riya@workforcehub.com",
-    employeeCount: 18,
-    status: "Active",
-  },
-  {
-    id: 7,
-    name: "Operations",
-    code: "OPS",
-    description: "Internal operations and business processes.",
-    head: "Dev Shah",
-    headEmail: "dev@workforcehub.com",
-    employeeCount: 11,
-    status: "Inactive",
-  },
-];
-
-const employees = [
-  { name: "Aarav Sharma", email: "aarav@workforcehub.com" },
-  { name: "Priya Patel", email: "priya@workforcehub.com" },
-  { name: "Ishaan Gupta", email: "ishaan@workforcehub.com" },
-  { name: "Ananya Singh", email: "ananya@workforcehub.com" },
-  { name: "Meera Joshi", email: "meera@workforcehub.com" },
-  { name: "Riya Kapoor", email: "riya@workforcehub.com" },
-  { name: "Dev Shah", email: "dev@workforcehub.com" },
-  { name: "Rohan Verma", email: "rohan@workforcehub.com" },
-];
-
 const emptyForm = {
   name: "",
   code: "",
   description: "",
-  head: "",
+  headId: "",
   status: "Active",
 };
+
+function mapDepartment(record, employees) {
+  const head = record.departmentHead;
+  const headId = head?._id || head || "";
+  const headEmployee = employees.find((employee) => employee._id === headId);
+  const employeeCount = employees.filter(
+    (employee) => (employee.departmentId?._id || employee.departmentId) === record._id
+  ).length;
+
+  return {
+    id: record._id,
+    name: record.name,
+    code: record.code,
+    description: record.description || "",
+    head: head && typeof head === "object"
+      ? [head.firstName, head.lastName].filter(Boolean).join(" ")
+      : [headEmployee?.firstName, headEmployee?.lastName].filter(Boolean).join(" "),
+    headId,
+    employeeCount,
+    status: record.isActive ? "Active" : "Inactive",
+  };
+}
 
 const departmentStyles = [
   { icon: Code2, style: "bg-indigo-50 text-indigo-600" },
@@ -142,7 +88,7 @@ function StatusBadge({ status }) {
   );
 }
 
-function DepartmentModal({ department, onClose, onSave, departments }) {
+function DepartmentModal({ department, onClose, onSave, departments, employees }) {
   const [form, setForm] = useState(department || emptyForm);
   const [error, setError] = useState("");
 
@@ -263,30 +209,17 @@ function DepartmentModal({ department, onClose, onSave, departments }) {
           <label className="block text-sm font-medium text-slate-700">
             Department head
             <select
-              name="head"
-              value={form.head || ""}
+              name="headId"
+              value={form.headId || ""}
               onChange={updateField}
               className={inputClass}
             >
               <option value="">Not assigned</option>
-              {employees.map((employee) => (
-                <option key={employee.email} value={employee.name}>
-                  {employee.name}
+              {employees.filter((employee) => employee.employmentStatus === "active").map((employee) => (
+                <option key={employee._id} value={employee._id}>
+                  {[employee.firstName, employee.lastName].filter(Boolean).join(" ")}
                 </option>
               ))}
-            </select>
-          </label>
-
-          <label className="block text-sm font-medium text-slate-700">
-            Status
-            <select
-              name="status"
-              value={form.status || "Active"}
-              onChange={updateField}
-              className={inputClass}
-            >
-              <option>Active</option>
-              <option>Inactive</option>
             </select>
           </label>
 
@@ -321,10 +254,10 @@ function DepartmentModal({ department, onClose, onSave, departments }) {
 }
 
 function DepartmentDetails({ department, onClose, onEdit }) {
-  const index = Math.max(
-    0,
-    initialDepartments.findIndex((item) => item.id === department.id)
-  );
+  const index = [...department.name].reduce(
+    (sum, character) => sum + character.charCodeAt(0),
+    0
+  ) % departmentStyles.length;
   const Icon = departmentStyles[index % departmentStyles.length].icon;
   const style = departmentStyles[index % departmentStyles.length].style;
 
@@ -403,7 +336,11 @@ function DepartmentDetails({ department, onClose, onEdit }) {
 }
 
 function Departments() {
-  const [departments, setDepartments] = useState(initialDepartments);
+  const { user } = useAuth();
+  const [departments, setDepartments] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Statuses");
   const [currentPage, setCurrentPage] = useState(1);
@@ -413,6 +350,37 @@ function Departments() {
   const [notice, setNotice] = useState("");
 
   const pageSize = 6;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDepartments() {
+      setLoading(true);
+      setLoadError("");
+      try {
+        const records = await fetchDepartments({ limit: 100 });
+        let employeeRecords = [];
+        if (["super_admin", "hr_admin", "manager"].includes(user?.role)) {
+          employeeRecords = await fetchEmployees({ limit: 100 });
+        }
+        if (!cancelled) {
+          setEmployees(employeeRecords);
+          setDepartments(records.map((record) => mapDepartment(record, employeeRecords)));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setLoadError(error.response?.data?.message || "Could not load departments from the server.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadDepartments();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.role]);
 
   const filteredDepartments = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -449,31 +417,27 @@ function Departments() {
     .filter((department) => department.status === "Active")
     .reduce((total, department) => total + department.employeeCount, 0);
 
-  const saveDepartment = (form) => {
-    if (form.id) {
-      setDepartments((current) =>
-        current.map((department) =>
-          department.id === form.id ? { ...department, ...form } : department
-        )
-      );
-      setNotice("Department updated successfully.");
-    } else {
-      setDepartments((current) => [
-        {
-          ...form,
-          id: Date.now(),
-          employeeCount: 0,
-          headEmail:
-            employees.find((employee) => employee.name === form.head)?.email ||
-            "",
-        },
-        ...current,
-      ]);
+  const saveDepartment = async (form) => {
+    try {
+      const payload = {
+        name: form.name,
+        code: form.code,
+        description: form.description,
+        departmentHead: form.headId || null,
+      };
+      const record = form.id
+        ? await updateDepartment(form.id, payload)
+        : await createDepartment(payload);
+      const mapped = mapDepartment(record, employees);
+      setDepartments((current) => form.id
+        ? current.map((department) => department.id === form.id ? mapped : department)
+        : [mapped, ...current]);
       setCurrentPage(1);
-      setNotice("Department created successfully.");
+      setNotice(form.id ? "Department updated successfully." : "Department created successfully.");
+      setModalDepartment(null);
+    } catch (error) {
+      setNotice(error.response?.data?.message || "Failed to save department.");
     }
-
-    setModalDepartment(null);
   };
 
   const editDepartment = (department) => {
@@ -482,18 +446,25 @@ function Departments() {
     setModalDepartment(department);
   };
 
-  const toggleDepartmentStatus = (department) => {
-    const nextStatus =
-      department.status === "Active" ? "Inactive" : "Active";
+  const toggleDepartmentStatus = async (department) => {
+    if (department.status !== "Active") {
+      setNotice("Inactive departments cannot be reactivated through this API.");
+      setMenuDepartmentId(null);
+      return;
+    }
 
-    setDepartments((current) =>
-      current.map((item) =>
-        item.id === department.id ? { ...item, status: nextStatus } : item
-      )
-    );
-
+    try {
+      await deactivateDepartment(department.id);
+      setDepartments((current) =>
+        current.map((item) =>
+          item.id === department.id ? { ...item, status: "Inactive" } : item
+        )
+      );
+      setNotice(`${department.name} is now inactive.`);
+    } catch (error) {
+      setNotice(error.response?.data?.message || "Failed to deactivate department.");
+    }
     setMenuDepartmentId(null);
-    setNotice(`${department.name} is now ${nextStatus.toLowerCase()}.`);
   };
 
   const inputClass =
@@ -548,6 +519,16 @@ function Departments() {
         </div>
       )}
 
+      {loadError && (
+        <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {loadError}
+        </p>
+      )}
+
+      {loading && (
+        <p role="status" className="text-sm text-slate-500">Loading departments…</p>
+      )}
+
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <div className="flex items-center gap-3">
@@ -594,13 +575,10 @@ function Departments() {
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {visibleDepartments.map((department) => {
-          const originalIndex = initialDepartments.findIndex(
-            (item) => item.id === department.id
-          );
-          const styleIndex =
-            originalIndex >= 0
-              ? originalIndex
-              : departments.findIndex((item) => item.id === department.id);
+          const styleIndex = [...department.name].reduce(
+            (sum, character) => sum + character.charCodeAt(0),
+            0
+          ) % departmentStyles.length;
           const { icon: Icon, style } =
             departmentStyles[styleIndex % departmentStyles.length];
 
@@ -652,16 +630,15 @@ function Departments() {
                       >
                         <Pencil size={16} /> Edit department
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => toggleDepartmentStatus(department)}
-                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-600 hover:bg-rose-50"
-                      >
-                        <Power size={16} />
-                        {department.status === "Active"
-                          ? "Deactivate"
-                          : "Activate"}
-                      </button>
+                      {department.status === "Active" && (
+                        <button
+                          type="button"
+                          onClick={() => toggleDepartmentStatus(department)}
+                          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-600 hover:bg-rose-50"
+                        >
+                          <Power size={16} /> Deactivate
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -796,6 +773,7 @@ function Departments() {
           key={modalDepartment.id || "new"}
           department={modalDepartment}
           departments={departments}
+          employees={employees}
           onClose={() => setModalDepartment(null)}
           onSave={saveDepartment}
         />

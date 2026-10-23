@@ -88,8 +88,12 @@ import {
   Routes,
 } from "react-router-dom";
 
-import { AuthProvider } from "./context/authContext";
+import { AuthProvider } from "./context/authContext.jsx";
+import { useAuth } from "./context/authContext.jsx";
+import ProtectedRoute from "./component/protectedRoute.jsx";
 import DashboardLayout from "./layouts/DashboardLayout";
+import Login from "./pages/login.jsx";
+import Register from "./pages/Register.jsx";
 
 import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
@@ -100,20 +104,48 @@ import Assets from "./pages/Assets";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 
+function PublicRoute({ children }) {
+  const { user, initializing } = useAuth();
+
+  if (initializing) {
+    return <div className="p-8 text-center text-slate-500">Restoring session…</div>;
+  }
+
+  return user ? <Navigate to="/" replace /> : children;
+}
+
 function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<DashboardLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="employees" element={<Employees />} />
-            <Route path="departments" element={<Departments />} />
-            <Route path="leaves" element={<Leaves />} />
-            <Route path="attendance" element={<Attendance />} />
-            <Route path="assets" element={<Assets />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="settings" element={<Settings />} />
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <PublicRoute>
+                <Register />
+              </PublicRoute>
+            }
+          />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<DashboardLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="employees" element={<Employees />} />
+              <Route path="departments" element={<Departments />} />
+              <Route path="leaves" element={<Leaves />} />
+              <Route path="attendance" element={<Attendance />} />
+              <Route path="assets" element={<Assets />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="settings" element={<Settings />} />
+            </Route>
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

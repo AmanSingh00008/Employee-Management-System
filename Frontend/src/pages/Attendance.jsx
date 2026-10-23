@@ -526,8 +526,8 @@ export default function Attendance() {
       const attendanceData = {
         employeeId: form.employeeId,
         date: form.date,
-        checkIn: form.checkIn ? `1970-01-01T${form.checkIn}:00Z` : null,
-        checkOut: form.checkOut ? `1970-01-01T${form.checkOut}:00Z` : null,
+        checkIn: form.checkIn ? `${form.date}T${form.checkIn}:00.000Z` : null,
+        checkOut: form.checkOut ? `${form.date}T${form.checkOut}:00.000Z` : null,
         status: statusMap[form.status] || "present",
         notes: form.notes,
       };

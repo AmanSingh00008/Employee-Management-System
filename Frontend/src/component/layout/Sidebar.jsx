@@ -28,18 +28,12 @@ const menuItems = [
 
 function Sidebar({ isOpen, closeSidebar }) {
   const { logout } = useAuth();
-  // const navigate = useNavigate();
-
-  // const handleLogout = () => {
-  //   logout();
-  //   navigate("/login", { replace: true });
-  // };
-
   const navigate = useNavigate();
 
-const handleLogout = () => {
-  navigate("/login");
-};
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login", { replace: true });
+  };
   return (
     <>
       {isOpen && (

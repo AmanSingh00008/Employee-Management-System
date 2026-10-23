@@ -2,10 +2,11 @@
     "name": "employee-management-system-root",
     "private": true,
     "scripts": {
-        "dev": "npm run dev --prefix \"Employee Management System\"",
-        "build": "npm run build --prefix \"Employee Management System\"",
-        "lint": "npm run lint --prefix \"Employee Management System\"",
-        "preview": "npm run preview --prefix \"Employee Management System\""
+        "dev": "npm run dev --prefix Frontend",
+        "dev:backend": "npm run dev --prefix Backend",
+        "build": "npm run build --prefix Frontend",
+        "lint": "npm run lint --prefix Frontend",
+        "preview": "npm run preview --prefix Frontend"
     },
     "dependencies": {
         "express-rate-limit": "^8.7.1",
