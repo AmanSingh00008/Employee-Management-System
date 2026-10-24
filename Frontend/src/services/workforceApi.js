@@ -73,7 +73,10 @@ export async function createLeaveRequest(leaveData) {
 }
 
 export async function reviewLeaveRequest(id, reviewData) {
-  const { data } = await api.patch(`/api/v1/leave-requests/${id}/review`, reviewData);
+  const { data } = await api.patch(
+    `/api/v1/leave-requests/${id}/review`,
+    reviewData,
+  );
   return data.data;
 }
 
